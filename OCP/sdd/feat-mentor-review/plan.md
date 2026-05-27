@@ -23,17 +23,17 @@ Pattern sử dụng:
 
 | Component | Trách nhiệm | File |
 | --- | --- | --- |
-| `mentor-review.routes` | Khai báo route queue/detail/submit review và gắn middleware. | `src/mentor-review/mentor-review.routes.ts` |
-| `SubmitReviewSchema` | Validate result, feedback và reject unknown fields. | `src/mentor-review/mentor-review.schemas.ts` |
-| `ReviewController` | Extract mentorId/submissionId/body, gọi service, format response. | `src/mentor-review/review.controller.ts` |
-| `ReviewService` | Orchestrate queue/detail/submit review theo SPEC. | `src/mentor-review/review.service.ts` |
-| `ProjectReviewRepository` | Insert/find review, bắt duplicate `submission_id`. | `src/mentor-review/repositories/project-review.repository.ts` |
-| `MentorFeedbackRepository` | Insert feedback gắn với review. | `src/mentor-review/repositories/mentor-feedback.repository.ts` |
-| `AssignmentGuard` | Kiểm tra Mentor có assignment `ACTIVE` với Course. | `src/mentor-review/guards/assignment.guard.ts` |
-| `SubmissionReader` | Đọc metadata submission từ Learning module. | `src/mentor-review/adapters/submission-reader.ts` |
-| `SubmissionUpdater` | Mark submission là `REVIEWED` sau khi review thành công. | `src/mentor-review/adapters/submission-updater.ts` |
-| `ReviewErrorMapper` | Map domain/Zod errors sang HTTP response. | `src/mentor-review/review-error.mapper.ts` |
-| `ReviewAuditLogger` | Ghi log review an toàn, không log full feedback. | `src/mentor-review/review-audit.logger.ts` |
+| `mentor-review.routes` | Khai báo route queue/detail/submit review và gắn middleware. | `backend/src/api/mentor-review.routes.ts` |
+| `SubmitReviewSchema` | Validate result, feedback và reject unknown fields. | `backend/src/middlewares/mentor-review.schema.ts` |
+| `ReviewController` | Extract mentorId/submissionId/body, gọi service, format response. | `backend/src/controllers/review.controller.ts` |
+| `ReviewService` | Orchestrate queue/detail/submit review theo SPEC. | `backend/src/services/review.service.ts` |
+| `ProjectReviewRepository` | Insert/find review, bắt duplicate `submission_id`. | `backend/src/repositories/project-review.repository.ts` |
+| `MentorFeedbackRepository` | Insert feedback gắn với review. | `backend/src/repositories/mentor-feedback.repository.ts` |
+| `AssignmentGuard` | Kiểm tra Mentor có assignment `ACTIVE` với Course. | `backend/src/services/assignment-guard.service.ts` |
+| `SubmissionReader` | Đọc metadata submission từ Learning module. | `backend/src/services/submission-reader.contract.ts` |
+| `SubmissionUpdater` | Mark submission là `REVIEWED` sau khi review thành công. | `backend/src/services/submission-updater.contract.ts` |
+| `ReviewErrorMapper` | Map domain/Zod errors sang HTTP response. | `backend/src/utils/review-error.mapper.ts` |
+| `ReviewAuditLogger` | Ghi log review an toàn, không log full feedback. | `backend/src/utils/review-audit.logger.ts` |
 
 ## 3. DATA FLOW
 

@@ -22,17 +22,17 @@ Pattern sử dụng:
 
 | Component | Trách nhiệm | File |
 | --- | --- | --- |
-| `admin.routes` | Khai báo route `/admin/users/*`, `/admin/mentors/*`, gắn auth/role/validation middleware. | `src/admin/admin.routes.ts` |
-| `admin.schemas` | Zod schemas cho block/unblock, hard delete, assign/revoke Mentor. | `src/admin/admin.schemas.ts` |
-| `AdminController` | Extract request context, gọi service, map success/error response. | `src/admin/admin.controller.ts` |
-| `AdminUserService` | Block/unblock/hard delete user; kiểm tra payment/enrollment; ghi audit. | `src/admin/admin-user.service.ts` |
-| `AdminMentorService` | Promote Mentor, assign/revoke/list assignments; chống duplicate. | `src/admin/admin-mentor.service.ts` |
-| `UserRepository` | Đọc/cập nhật/xóa user qua DB transaction. | `src/admin/repositories/user.repository.ts` |
-| `MentorAssignmentRepository` | Tạo, tìm, disable assignment; bắt unique conflict. | `src/admin/repositories/mentor-assignment.repository.ts` |
-| `PaymentReader` | Kiểm tra user có payment `SUCCESS`. | `src/admin/adapters/payment-reader.ts` |
-| `EnrollmentReader` | Kiểm tra user có active enrollment. | `src/admin/adapters/enrollment-reader.ts` |
-| `AdminErrorMapper` | Map domain/Zod errors sang HTTP response. | `src/admin/admin-error.mapper.ts` |
-| `AdminAuditLogger` | Ghi audit log an toàn cho thao tác Admin. | `src/admin/admin-audit.logger.ts` |
+| `admin.routes` | Khai báo route `/admin/users/*`, `/admin/mentors/*`, gắn auth/role/validation middleware. | `backend/src/api/admin.routes.ts` |
+| `admin.schema` | Zod schemas cho block/unblock, hard delete, assign/revoke Mentor. | `backend/src/middlewares/admin.schema.ts` |
+| `AdminController` | Extract request context, gọi service, map success/error response. | `backend/src/controllers/admin.controller.ts` |
+| `AdminUserService` | Block/unblock/hard delete user; kiểm tra payment/enrollment; ghi audit. | `backend/src/services/admin-user.service.ts` |
+| `AdminMentorService` | Promote Mentor, assign/revoke/list assignments; chống duplicate. | `backend/src/services/admin-mentor.service.ts` |
+| `UserRepository` | Đọc/cập nhật/xóa user qua DB transaction. | `backend/src/repositories/user.repository.ts` |
+| `MentorAssignmentRepository` | Tạo, tìm, disable assignment; bắt unique conflict. | `backend/src/repositories/mentor-assignment.repository.ts` |
+| `PaymentReader` | Kiểm tra user có payment `SUCCESS`. | `backend/src/services/payment-reader.contract.ts` |
+| `EnrollmentReader` | Kiểm tra user có active enrollment. | `backend/src/services/enrollment-reader.contract.ts` |
+| `AdminErrorMapper` | Map domain/Zod errors sang HTTP response. | `backend/src/utils/admin-error.mapper.ts` |
+| `AdminAuditLogger` | Ghi audit log an toàn cho thao tác Admin. | `backend/src/utils/admin-audit.logger.ts` |
 
 ## 3. DATA FLOW
 

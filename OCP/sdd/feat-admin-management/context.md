@@ -49,4 +49,3 @@ Pain chính là thiếu quyền kiểm soát an toàn ở tầng vận hành: Ad
 3. Khi revoke assignment mà còn pending submissions thì giữ nguyên, chuyển `UNASSIGNED`, hay chặn revoke?
 4. Có cần bảng `admin_audit_logs` riêng hay structured logger là đủ cho MVP?
 5. Cross-module reader timeout sẽ fail đóng request hay cho phép retry thủ công?
-...

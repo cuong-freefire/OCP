@@ -23,19 +23,19 @@ Pattern sử dụng:
 
 | Component | Trách nhiệm | File |
 | --- | --- | --- |
-| `reports.routes` | Khai báo `/admin/dashboard`, `/admin/reports/*`, gắn auth/role/validation. | `src/reports/reports.routes.ts` |
-| `DashboardQuerySchema` | Validate `startDate`, `endDate`, `granularity`, max range. | `src/reports/reports.schemas.ts` |
-| `ReportController` | Extract query/admin context, gọi service, format response. | `src/reports/report.controller.ts` |
-| `DashboardService` | Orchestrate adapters song song, build DTO và warnings. | `src/reports/dashboard.service.ts` |
-| `PaymentReportAdapter` | Lấy revenue từ Payment contract, chỉ `SUCCESS`. | `src/reports/adapters/payment-report.adapter.ts` |
-| `UserReportAdapter` | Lấy user totals/growth/byRole từ Auth contract. | `src/reports/adapters/user-report.adapter.ts` |
-| `CourseReportAdapter` | Lấy course totals/top courses từ Course contract. | `src/reports/adapters/course-report.adapter.ts` |
-| `EnrollmentReportAdapter` | Lấy enrollment count/conversion inputs. | `src/reports/adapters/enrollment-report.adapter.ts` |
-| `ReviewReportAdapter` | Lấy PASS/FAIL/pending/mentor performance. | `src/reports/adapters/review-report.adapter.ts` |
-| `TimeoutWrapper` | Bọc adapter promises bằng timeout. | `src/reports/timeout-wrapper.ts` |
-| `DashboardDTO` mappers | Chuẩn hóa adapter result thành response contract. | `src/reports/report.types.ts`, `src/reports/report.mapper.ts` |
-| `ReportCache` | Optional Redis cache wrapper, fallback khi Redis lỗi. | `src/reports/report-cache.ts` |
-| `ReportLogger` | Log latency, warning rate và adapter failure. | `src/reports/report.logger.ts` |
+| `reports.routes` | Khai báo `/admin/dashboard`, `/admin/reports/*`, gắn auth/role/validation. | `backend/src/api/reports.routes.ts` |
+| `DashboardQuerySchema` | Validate `startDate`, `endDate`, `granularity`, max range. | `backend/src/middlewares/reports.schema.ts` |
+| `ReportController` | Extract query/admin context, gọi service, format response. | `backend/src/controllers/report.controller.ts` |
+| `DashboardService` | Orchestrate adapters song song, build DTO và warnings. | `backend/src/services/dashboard.service.ts` |
+| `PaymentReportAdapter` | Lấy revenue từ Payment contract, chỉ `SUCCESS`. | `backend/src/services/payment-report.adapter.ts` |
+| `UserReportAdapter` | Lấy user totals/growth/byRole từ Auth contract. | `backend/src/services/user-report.adapter.ts` |
+| `CourseReportAdapter` | Lấy course totals/top courses từ Course contract. | `backend/src/services/course-report.adapter.ts` |
+| `EnrollmentReportAdapter` | Lấy enrollment count/conversion inputs. | `backend/src/services/enrollment-report.adapter.ts` |
+| `ReviewReportAdapter` | Lấy PASS/FAIL/pending/mentor performance. | `backend/src/services/review-report.adapter.ts` |
+| `TimeoutWrapper` | Bọc adapter promises bằng timeout. | `backend/src/utils/timeout-wrapper.ts` |
+| `DashboardDTO` mappers | Chuẩn hóa adapter result thành response contract. | `backend/src/utils/report.types.ts`, `backend/src/utils/report.mapper.ts` |
+| `ReportCache` | Optional Redis cache wrapper, fallback khi Redis lỗi. | `backend/src/services/report-cache.service.ts` |
+| `ReportLogger` | Log latency, warning rate và adapter failure. | `backend/src/utils/report.logger.ts` |
 
 ## 3. DATA FLOW
 

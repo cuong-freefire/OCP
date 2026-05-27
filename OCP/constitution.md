@@ -17,6 +17,8 @@ Tài liệu này định nghĩa các quy tắc nền mà toàn bộ thành viên
 4. **Pha 3 — Tasks**: AI đọc `PLAN.md` và `SPEC.md` để tạo `TASKS.md` dạng bảng task atomic, independent, verifiable.
 5. **Pha 4 — Implementation**: AI/code agent implement theo `TASKS.md`, mỗi task phải có done criteria rõ ràng.
 
+Trước mọi pha, AI agent phải đọc `agent/AGENTS.md` và `agent/PROJECT_AGENTS.md` để nắm tech stack, module ownership, forbidden patterns và Definition of Done toàn cục.
+
 ## 3. Chuẩn `CONTEXT.md`
 
 Mỗi feature context phải có đúng các phần:
@@ -76,3 +78,4 @@ Quy tắc task:
 - Cross-module access phải qua adapter/contract; không tự ý query bảng của module khác.
 - Error response không được leak stack trace, secret, cookie, JWT hoặc query nội bộ.
 - Tests phải trace được về acceptance criteria trong `SPEC.md`.
+- Các đường dẫn implementation trong `PLAN.md` và `TASKS.md` phải theo cấu trúc chuẩn `/backend/src/api`, `/backend/src/controllers`, `/backend/src/services`, `/backend/src/repositories`, `/backend/src/middlewares`, `/backend/src/utils`.
