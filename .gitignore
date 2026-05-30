@@ -1,0 +1,173 @@
+# =========================
+# Maven
+# =========================
+target/
+!.mvn/wrapper/maven-wrapper.jar
+.mvn/
+mvnw
+mvnw.cmd
+
+# Keep target folders inside src if needed
+!**/src/main/**/target/
+!**/src/test/**/target/
+
+# =========================
+# Gradle
+# =========================
+.gradle/
+gradle-app.setting
+build.gradle
+settings.gradle
+gradlew
+gradlew.bat
+
+# =========================
+# Logs
+# =========================
+*.log
+logs/
+
+# =========================
+# Environment / Secrets
+# =========================
+.env
+.env.*
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+secrets.json
+credentials.json
+*.pem
+*.key
+id_rsa*
+id_ed25519*
+
+# =========================
+# Spring Boot
+# =========================
+HELP.md
+application-local.properties
+application-secret.properties
+.spring-boot-devtools.properties
+
+# =========================
+# IntelliJ IDEA
+# =========================
+.idea/
+*.iws
+*.iml
+*.ipr
+out/
+
+# =========================
+# VS Code
+# =========================
+.vscode/
+
+# =========================
+# Eclipse / STS
+# =========================
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings/
+.springBeans
+.sts4-cache
+
+# =========================
+# NetBeans
+# =========================
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+build/
+
+!**/src/main/**/build/
+!**/src/test/**/build/
+
+# =========================
+# OS Files
+# =========================
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+._*
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*~
+
+# =========================
+# Java
+# =========================
+*.class
+*.jar
+*.war
+*.ear
+.flattened-pom.xml
+dependency-reduced-pom.xml
+build.log
+*.hprof
+
+# =========================
+# Temporary Files
+# =========================
+*.tmp
+*.swp
+*.swo
+tmp/
+temp/
+/tmp
+
+# =========================
+# Node.js
+# =========================
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# =========================
+# Test Coverage
+# =========================
+coverage/
+
+# =========================
+# Database Files
+# =========================
+*.db
+*.sqlite
+*.sqlite3
+
+# =========================
+# Uploads
+# =========================
+uploads/
+
+# =========================
+# Editor / Tools
+# =========================
+*.sublime-project
+*.sublime-workspace
+.zed
+*.pyc
+
+# =========================
+# Module Cache
+# =========================
+.module-cache
+
+# =========================
+# Archives
+# =========================
+*.7z
+*.zip
+*.tar
+*.gz
+*.rar
