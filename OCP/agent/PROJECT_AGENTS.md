@@ -1,547 +1,647 @@
-# PROJECT_AGENTS.md — Bách khoa toàn thư dự án OCP
+# PROJECT_AGENTS.md — Online Course Platform (OCP) v1.0
+## Nền tảng khóa học trực tuyến với thanh toán VNPAY và kiểm soát quyền học
 
-# Phiên bản: 1.0 | Trạng thái: ACTIVE | Công cụ: OpenAI Codex | Updated: 2026-05-27
+---
 
-## 1. TL;DR
+## TL;DR (Đọc trước — 60 giây)
 
-Dự án OCP (Online Course Platform) là nền tảng khóa học trực tuyến.
+> **Đây là hệ thống Online Course Platform (OCP)**
+>
+> **Backend**: NodeJS + Express-style REST API + Prisma + MySQL
+> **Frontend**: React + Bootstrap
+> **Auth**: JWT lưu trong httpOnly Cookie + bcrypt
+> **Payment**: VNPAY, backend ký URL và xác minh kết quả thanh toán
+>
+> **Nguyên tắc cứng**: Backend là source of truth cho auth, role, payment, enrollment và course access.
 
-Backend dùng NodeJS API, MySQL, Prisma. Frontend dùng React và Bootstrap. Auth dùng JWT trong `httpOnly Cookie`. Validation dùng Zod. Payment gateway là VNPAY.
+### Đọc trước
 
-Ba mục tiêu kỹ thuật chính:
+1. `AGENTS.md` -> project context, forbidden patterns, sprint context
+2. `specs/feature-payment-checkout/SPEC.md` -> Formal Spec cho Payment Checkout
+3. `specs/feature-payment-checkout/PLAN.md` -> implementation plan
+4. `specs/feature-payment-checkout/TASKS.md` -> task breakdown
+5. File này -> architecture, workflow, patterns và conventions cho AI agent
 
-1. **Toàn vẹn quyền học**: paid course chỉ mở khi backend xác nhận enrollment hợp lệ.
-2. **Mentor chấm đúng phạm vi**: Mentor chỉ xem/chấm submission thuộc Course được Admin phân công.
-3. **Admin report ổn định**: Reports read-only, tổng hợp dữ liệu nhiều module và chịu lỗi dependency bằng partial response.
+---
 
-Ba feature spec đang active:
+## KIẾN TRÚC HỆ THỐNG
 
-- `feat-admin-management`: quản lý user, Mentor và assignment.
-- `feat-mentor-review`: Mentor queue và chấm Final Project.
-- `feat-reports`: Dashboard và Reports cho Admin.
-
-## 2. KIẾN TRÚC HỆ THỐNG
-
-### 2.1 Service chính
-
-| Service | Trách nhiệm | Port dự kiến | Repo/Path |
-| --- | --- | --- | --- |
-| `ocp-web` | Frontend React | 3000 | `/frontend` |
-| `ocp-api` | Backend NodeJS API monolith | 4000 | `/backend` |
-| MySQL | Database chính | 3306 | managed/local |
-
-### 2.2 Flow tổng quát
+### Sơ đồ tổng quan
 
 ```text
-Guest -> Register/Login -> Browse Course -> View Course Detail
-Learner -> Buy/Enroll Course -> Learn Lesson -> Quiz -> Submit Final Project
-Mentor -> Review Queue -> Review PASS/FAIL + Feedback
-Admin -> User/Mentor Management -> Reports Dashboard
+┌──────────────────────────────────────────────────────────────────────┐
+│                         FRONTEND (React)                              │
+│                                                                      │
+│  Course List  Course Detail  Checkout Button  My Courses  Learning  │
+│      │             │              │              │           │       │
+└──────┼─────────────┼──────────────┼──────────────┼───────────┼───────┘
+       │             │              │              │           │
+       ▼             ▼              ▼              ▼           ▼
+┌──────────────────────────────────────────────────────────────────────┐
+│                    BACKEND (NodeJS REST API)                          │
+│                                                                      │
+│  ┌────────────────────────────────────────────────────────────────┐  │
+│  │ Route / API Layer                                               │  │
+│  │ /auth  /courses  /payments  /enrollments  /learning  /admin    │  │
+│  └───────────────────────────────┬────────────────────────────────┘  │
+│                                  ▼                                   │
+│  ┌────────────────────────────────────────────────────────────────┐  │
+│  │ Middleware Layer                                                │  │
+│  │ auth cookie, role guard, validation, error handling             │  │
+│  └───────────────────────────────┬────────────────────────────────┘  │
+│                                  ▼                                   │
+│  ┌────────────────────────────────────────────────────────────────┐  │
+│  │ Controller Layer                                                │  │
+│  │ nhận request, gọi service, trả response                         │  │
+│  └───────────────────────────────┬────────────────────────────────┘  │
+│                                  ▼                                   │
+│  ┌────────────────────────────────────────────────────────────────┐  │
+│  │ Service Layer                                                   │  │
+│  │ business logic, transaction, payment flow, access rules          │  │
+│  └───────────────────────────────┬────────────────────────────────┘  │
+│                                  ▼                                   │
+│  ┌────────────────────────────────────────────────────────────────┐  │
+│  │ Repository / Module Contract Layer                              │  │
+│  │ Prisma repositories hoặc service contract giữa các module        │  │
+│  └───────────────────────────────┬────────────────────────────────┘  │
+└──────────────────────────────────┼───────────────────────────────────┘
+                                   ▼
+                    ┌──────────────────────────────┐
+                    │       MySQL + Prisma          │
+                    │ users, courses, payments, ... │
+                    └──────────────────────────────┘
+                                   │
+                                   ▼
+                    ┌──────────────────────────────┐
+                    │            VNPAY              │
+                    │ payment URL, return, callback │
+                    └──────────────────────────────┘
 ```
 
-### 2.3 Payment và Enrollment Flow
+### Layer Architecture (Backend)
 
 ```text
-Learner
-  -> ocp-web gửi ý định mua course
-  -> ocp-api kiểm tra JWT + Course contract
-  -> ocp-api tạo payment/VNPAY URL
-  -> VNPAY xử lý thanh toán
-  -> ocp-api verify callback/return
-  -> MySQL cập nhật payment SUCCESS
-  -> tạo enrollment
-  -> Learner được quyền học
+┌─────────────────────────────────────────┐
+│ Route / API Entry                       │
+│ - Define endpoint                       │
+│ - Attach middleware                     │
+└─────────────────┬───────────────────────┘
+                  ▼
+┌─────────────────────────────────────────┐
+│ Middleware Layer                        │
+│ - Auth từ httpOnly Cookie               │
+│ - Role/access guard                     │
+│ - Zod validation                        │
+│ - Global error handling                 │
+└─────────────────┬───────────────────────┘
+                  ▼
+┌─────────────────────────────────────────┐
+│ Controller Layer                        │
+│ - Nhận request                          │
+│ - Gọi service                           │
+│ - Format response                       │
+│ - Không chứa business logic             │
+└─────────────────┬───────────────────────┘
+                  ▼
+┌─────────────────────────────────────────┐
+│ Service Layer                           │
+│ - Business logic                        │
+│ - Transaction orchestration             │
+│ - Payment/access invariants             │
+│ - Cross-module contract calls           │
+└─────────────────┬───────────────────────┘
+                  ▼
+┌─────────────────────────────────────────┐
+│ Repository Layer                        │
+│ - Prisma queries                        │
+│ - Database persistence                  │
+│ - Không chứa HTTP logic                 │
+└─────────────────┬───────────────────────┘
+                  ▼
+┌─────────────────────────────────────────┐
+│ MySQL Database                          │
+└─────────────────────────────────────────┘
 ```
 
-Rule: payment `PENDING` không unlock paid course.
-
-### 2.4 Mentor Review Flow
+### Repository Structure
 
 ```text
-Admin tạo Mentor assignment
-  -> Mentor mở Review Queue
-  -> Backend kiểm tra JWT + role MENTOR
-  -> Backend kiểm tra isMentorAssignedToCourse
-  -> Mentor submit PASS/FAIL + feedback
-  -> Backend lưu review + feedback + update submission status atomically
+OCP/
+├── agents/
+│   ├── AGENTS.md
+│   └── PROJECT_AGENTS.md
+├── specs/
+│   └── feature-payment-checkout/
+│       ├── CONTEXT.md
+│       ├── SPEC.md
+│       ├── PLAN.md
+│       └── TASKS.md
+├── ocp-api/
+│   ├── src/
+│   └── prisma/
+└── ocp-web/
+    └── src/
 ```
 
-Rule: Mentor role chưa đủ; phải có assignment theo Course.
+---
 
-### 2.5 Reports Flow
+## QUYẾT ĐỊNH KIẾN TRÚC QUAN TRỌNG (ADR)
+
+### ADR-001: NodeJS + Express-style API cho backend
+**Quyết định**: Backend dùng NodeJS với REST API kiểu Express.
+**Lý do**: Phù hợp team, dễ tích hợp Prisma, React frontend và VNPAY flow.
+**Trade-off**: Cần kỷ luật layer rõ ràng để tránh service/controller bị trộn logic.
+**Status**: Approved
+
+### ADR-002: MySQL + Prisma cho persistence
+**Quyết định**: Database chính là MySQL, ORM là Prisma.
+**Lý do**: Dễ migration, schema rõ, phù hợp đồ án và stack hiện tại.
+**Trade-off**: MySQL không hỗ trợ partial unique index như PostgreSQL; các constraint kiểu active `PENDING` cần transaction lock/application logic hoặc generated column.
+**Status**: Approved
+
+### ADR-003: JWT trong httpOnly Cookie cho authentication
+**Quyết định**: Auth token lưu trong httpOnly Cookie; backend đọc token từ `req.cookies`.
+**Lý do**: Giảm rủi ro token bị đọc bởi JavaScript, phù hợp rule bảo mật của project.
+**Trade-off**: Frontend phải dùng `withCredentials: true`; cần cấu hình CORS/cookie đúng.
+**Status**: Approved
+
+### ADR-004: Backend là source of truth cho authorization
+**Quyết định**: Backend quyết định role, userId, enrollment, payment status và course access.
+**Lý do**: Frontend có thể bị sửa request/state; access paid course là nghiệp vụ rủi ro cao.
+**Trade-off**: Mỗi endpoint nhạy cảm phải có guard hoặc service check đầy đủ.
+**Status**: Approved
+
+### ADR-005: VNPAY xử lý ở backend
+**Quyết định**: Backend tạo signed payment URL và xác minh return/callback; frontend không ký hoặc gọi VNPAY trực tiếp.
+**Lý do**: Secret và signing payload không được expose ra client.
+**Trade-off**: Backend phải quản lý transaction, idempotency và audit log cẩn thận.
+**Status**: Approved
+
+### ADR-006: Payment Checkout tách khỏi Payment Verification
+**Quyết định**: Checkout chỉ tạo/reuse payment `PENDING`; verification/callback tạo `SUCCESS/FAILED` và enrollment là feature riêng.
+**Lý do**: Giảm scope, tránh AI agent tự implement enrollment trong checkout.
+**Trade-off**: Cần spec riêng cho VNPAY return/callback và enrollment creation.
+**Status**: Approved
+
+### ADR-007: Module ownership là ranh giới bắt buộc
+**Quyết định**: Module chỉ truy cập dữ liệu module khác qua service/contract.
+**Lý do**: Giảm coupling, tránh phá trách nhiệm của thành viên khác.
+**Trade-off**: Cần định nghĩa contract rõ trước khi implement cross-module flow.
+**Status**: Approved
+
+---
+
+## NHỮNG GÌ ĐÃ KHÔNG HOẠT ĐỘNG (Lessons Learned)
+
+### LESSON-001: Implicit auth assumption gây sai kiến trúc
+**Vấn đề**: Nếu spec chỉ ghi "JWT hợp lệ" mà không nói token lấy từ đâu, AI dễ tự dùng `Authorization: Bearer <token>`.
+**Giải pháp**: Mọi spec/API contract liên quan auth phải ghi rõ JWT lấy từ httpOnly Cookie, backend đọc `req.cookies`, frontend dùng `withCredentials: true`.
+**Áp dụng**: Tất cả endpoint cần login.
+
+### LESSON-002: Payment `PENDING` không được unlock course
+**Vấn đề**: Nếu checkout và enrollment không tách scope, AI có thể tạo enrollment ngay sau khi redirect hoặc sau khi tạo payment.
+**Giải pháp**: Checkout chỉ tạo/reuse `PENDING`; enrollment chỉ tạo sau backend verify payment success.
+**Áp dụng**: Payment Checkout, VNPAY callback/return, My Courses, Learning.
+
+### LESSON-003: Không query chéo module
+**Vấn đề**: Ghi "lấy course trực tiếp từ database" khiến AI có thể gọi Prisma vào bảng `courses` trong Payment service.
+**Giải pháp**: Payment phải gọi Course Module contract, không query trực tiếp table `courses`.
+**Áp dụng**: Payment checkout, payment verification, access checking.
+
+### LESSON-004: MySQL không có partial unique index kiểu PostgreSQL
+**Vấn đề**: Spec hoặc migration có thể sai nếu yêu cầu unique `(user_id, course_id) WHERE status = 'PENDING'`.
+**Giải pháp**: Dùng transaction lock/application lock hoặc generated column nếu cần DB-level enforcement.
+**Áp dụng**: Duplicate checkout và race condition.
+
+### LESSON-005: Formal Spec cần state diagram trực quan
+**Vấn đề**: Chỉ mô tả transition bằng text khiến AI dễ trôi ngữ cảnh.
+**Giải pháp**: Formal Spec mức 3 phải có ASCII state diagram và invalid transitions.
+**Áp dụng**: Payment, enrollment, course access, final project grading.
+
+---
+
+## FILE STRUCTURE
+
+### Backend (NodeJS + Prisma)
 
 ```text
-Admin
-  -> GET /admin/dashboard
-  -> Backend kiểm tra JWT + role ADMIN
-  -> DashboardService gọi report adapters song song
-  -> Adapter success đưa vào DTO
-  -> Adapter fail/timeout đưa vào warnings[]
-  -> Response HTTP 200 với partial data nếu có lỗi từng phần
+ocp-api/
+├── src/
+│   ├── api/              # API entry points, route definitions
+│   ├── controllers/      # Nhận request, gọi service, trả response
+│   ├── services/         # Business logic, transaction orchestration
+│   ├── repositories/     # Prisma/database access
+│   ├── middlewares/      # Auth, role, validation, global error handler
+│   ├── utils/            # Response helpers, errors, pure utilities
+│   ├── config/           # Env/config cho VNPAY, auth, database
+│   └── types/            # Shared DTO/types nếu project dùng TypeScript
+├── prisma/
+│   ├── schema.prisma
+│   └── migrations/
+└── tests/
 ```
 
-Rule: Reports read-only, không mutate dữ liệu nguồn.
-
-## 3. QUYẾT ĐỊNH KIẾN TRÚC QUAN TRỌNG (ADR)
-
-### ADR-001: Dùng backend monolith `ocp-api`
-
-Quyết định: Backend NodeJS xử lý auth, course, payment, enrollment, learning, mentor, admin và report trong một API monolith.
-
-Lý do: MVP/team nhỏ cần dễ debug, dễ triển khai, ít overhead vận hành.
-
-Trade-off: Khi hệ thống lớn, monolith có thể phình to. Cần chia code rõ theo module ngay từ đầu.
-
-### ADR-002: Backend là nguồn quyết định phân quyền
-
-Quyết định: Frontend chỉ hỗ trợ UX; backend quyết định quyền thật.
-
-Rule:
-
-- Admin APIs phải check role Admin.
-- Mentor APIs phải check role Mentor và assignment.
-- Learner APIs phải check enrollment/access.
-
-### ADR-003: Auth dùng JWT trong httpOnly Cookie
-
-Quyết định: JWT được lưu trong `httpOnly Cookie`, không lưu trong browser storage.
-
-Rule:
-
-- Backend đọc token từ `req.cookies`.
-- Frontend dùng `withCredentials: true`.
-- Không tự gắn Bearer token.
-
-### ADR-004: Dùng RBAC cho actor chính
-
-Actor chính:
-
-- Guest.
-- Learner.
-- Mentor.
-- Admin.
-
-Rule: Mỗi API quan trọng phải khai báo rõ role nào được gọi.
-
-### ADR-005: Course access dựa trên Enrollment/Entitlement
-
-Quyết định: Learner chỉ học paid course khi có enrollment hợp lệ.
-
-Rule:
-
-- Free course có thể enroll miễn phí.
-- Paid course chỉ unlock sau khi backend verify payment và tạo enrollment.
-- Không dùng payment `PENDING` để cấp quyền học.
-
-### ADR-006: Tích hợp VNPAY qua backend
-
-Quyết định: Chỉ backend tạo VNPAY URL, ký request và verify callback/return.
-
-Rule:
-
-- Frontend không gọi VNPAY trực tiếp.
-- Frontend không quyết định payment success.
-- Backend không nhận amount/price từ frontend.
-
-### ADR-007: Payment phải idempotent
-
-Quyết định: `paymentRef` hoặc `transactionId` chỉ được xử lý thành công một lần.
-
-Rule:
-
-- Callback gọi lại không tạo enrollment trùng.
-- Payment đã `SUCCESS` không xử lý side effect lặp.
-
-### ADR-008: Dùng MySQL làm database chính
-
-Quyết định: MySQL lưu dữ liệu quan hệ chính.
-
-Trade-off: Cần index tốt cho bảng lớn như payment, enrollment, submission, review và report queries.
-
-### ADR-009: Dùng Prisma cho data access thông thường
-
-Quyết định: Repository dùng Prisma cho CRUD. Raw SQL chỉ dùng khi cần tối ưu report/lock và phải parameterized.
-
-Rule:
-
-- Service không import Prisma.
-- Repository là tầng data access.
-- Không sửa/xóa migration cũ.
-
-### ADR-010: Mentor được gán theo từng Course
-
-Quyết định: Mentor không có quyền mặc định trên mọi Course.
-
-Rule:
-
-- `isMentorAssignedToCourse(mentorId, courseId)` phải được check trước khi Mentor xem/chấm.
-- Admin là người quản lý assignment.
-
-### ADR-011: Final Project dùng Hybrid Grading
-
-Quyết định: Quiz/bài nhỏ có thể auto-grade; Final Project do Mentor chấm `PASS/FAIL`.
-
-Rule:
-
-- Review phải có feedback.
-- Kết quả chấm phải lưu database.
-- Submission status phải đồng bộ với review result.
-
-### ADR-012: Admin quản lý Mentor và Reports
-
-Quyết định: Admin module quản lý user status, Mentor assignment và Reports.
-
-Rule:
-
-- Chỉ Admin được gọi `/admin/*`.
-- Reports phải read-only.
-- Admin mutation phải audit log.
-
-### ADR-013: Reports nằm trong `ocp-api` ở MVP
-
-Quyết định: Reports được xử lý trong backend hiện tại.
-
-Rule:
-
-- Query report nằm trong report service/repository.
-- Adapter failure phải tạo warning, không crash dashboard.
-- Không trả raw PII/payment rows trong report response.
-
-## 4. PATTERNS ĐƯỢC SỬ DỤNG
-
-### 4.1 Request Validation Pattern
-
-Mọi body/query/params quan trọng phải validate bằng Zod.
-
-Rule:
-
-- Dữ liệu sai format trả `VALIDATION_ERROR`.
-- Unknown fields nên bị reject bằng strict schema.
-- Dữ liệu chưa validate không đi vào Prisma query hoặc business logic.
-
-### 4.2 Layered Architecture
+### Frontend (React + Bootstrap)
 
 ```text
-Route
-  -> Middleware
-  -> Controller
-  -> Service
-  -> Repository/Adapter
-  -> Prisma/MySQL hoặc external contract
+ocp-web/
+├── src/
+│   ├── api/              # API client, axios/fetch wrappers
+│   ├── components/       # Reusable components
+│   ├── pages/            # Page components
+│   ├── routes/           # Route definitions/guards
+│   ├── layouts/          # Shared layouts
+│   ├── hooks/            # Custom hooks
+│   └── utils/            # Pure utilities
+└── public/
 ```
 
-Rule:
+### Specs
 
-- Controller không chứa business logic.
-- Service không gọi Prisma trực tiếp.
-- Repository không chứa business rule lớn.
+```text
+specs/
+└── feature-payment-checkout/
+    ├── CONTEXT.md
+    ├── SPEC.md
+    ├── PLAN.md
+    └── TASKS.md
+```
 
-### 4.3 Repository Pattern
+---
 
-Repository chịu trách nhiệm database query.
+## DEVELOPMENT WORKFLOW
 
-Examples:
+### Standard Flow
 
-- `userRepository`
-- `courseRepository`
-- `paymentRepository`
-- `enrollmentRepository`
-- `mentorAssignmentRepository`
-- `projectReviewRepository`
-- `reportRepository`
+```text
+/spec  ->  /plan  ->  /tasks  ->  /build  ->  /test  ->  /review
+Define     Plan      Split      Code       Verify    Review
+```
 
-### 4.4 Service Pattern
+### Workflow Rules
 
-Service chứa nghiệp vụ.
+| Phase | Output | Rule |
+| --- | --- | --- |
+| Define | `SPEC.md` | Feature rủi ro cao phải dùng Formal Spec mức 3 |
+| Plan | `PLAN.md` | Không viết code; chỉ thiết kế implementation approach |
+| Tasks | `TASKS.md` | Task độc lập, tối đa 4 giờ/task, có spec refs và done criteria |
+| Build | Code changes | Chỉ implement task đã duyệt |
+| Verify | Tests/build output | Chạy test phù hợp scope |
+| Review | Findings/fixes | Ưu tiên bugs, regressions, missing tests |
 
-Examples:
+### Supporting Commands
 
-- `adminUserService`: block/unblock/hard delete policy.
-- `adminMentorService`: assign/revoke Mentor.
-- `reviewService`: queue/detail/submit review.
-- `dashboardService`: aggregate reports.
-- `paymentService`: checkout, verify, enrollment unlock.
+| Command/Action | Use when |
+| --- | --- |
+| `rg` | Tìm file/text nhanh trong repo |
+| `pnpm build` hoặc project build command | Kiểm tra frontend/backend build nếu có |
+| Existing test command | Verify task implementation |
+| Prisma migration command | Khi schema thay đổi |
+| Manual review | Khi tool không chạy được trong môi trường hiện tại |
 
-### 4.5 Middleware Pattern
+---
 
-Middleware chính:
+## RULES & GUIDELINES
 
-- `authMiddleware`: kiểm tra JWT cookie.
-- `roleMiddleware`: kiểm tra Admin/Mentor/Learner.
-- `validateMiddleware`: validate Zod schema.
-- `errorMiddleware`: map lỗi về response chuẩn.
+### ALWAYS DO
 
-### 4.6 Transaction Pattern
+| Rule | Description |
+| --- | --- |
+| Read context first | Đọc `AGENTS.md`, `PROJECT_AGENTS.md`, spec/plan/task liên quan trước khi sửa |
+| Cookie auth | Dùng JWT trong httpOnly Cookie, backend đọc `req.cookies` |
+| Input validation | Dùng Zod cho body/query/params quan trọng |
+| Layered architecture | Route -> Middleware -> Controller -> Service -> Repository |
+| Backend authorization | Backend check role/user/enrollment/access |
+| Payment snapshot | Amount lấy từ Course Module, không lấy từ frontend |
+| Idempotency | Payment callback/transaction success phải xử lý đúng một lần |
+| Error safety | Không leak secret/raw errors |
+| Tests | Thêm unit/integration tests cho logic mới |
+| Comments | Giải thích why, không giải thích what hiển nhiên |
 
-Áp dụng khi thay đổi nhiều bảng hoặc nhiều state phụ thuộc nhau:
+### NEVER DO
 
-- Payment success -> payment status -> enrollment.
-- Mentor submit review -> review -> feedback -> submission status.
-- Admin mutation -> user/assignment update -> audit log nếu cùng DB.
+| Rule | Description |
+| --- | --- |
+| No Bearer auth | Không tự chuyển sang `Authorization: Bearer <token>` |
+| No localStorage JWT | Không lưu JWT trong `localStorage`/`sessionStorage` |
+| No frontend authority | Frontend không quyết định role, amount, status, access |
+| No Prisma in service | Service/controller không import Prisma |
+| No cross-module query | Không query table của module khác trực tiếp |
+| No pending unlock | Payment `PENDING` không unlock paid course |
+| No frontend VNPAY signing | Frontend không ký/gọi VNPAY trực tiếp |
+| No duplicate enrollment | Không tạo enrollment trùng user-course |
+| No secret logs | Không log JWT/cookie/VNPAY secret/password/API key |
+| No out-of-scope | Không thêm feature ngoài spec |
 
-Rule: Nếu không thể cùng DB transaction, phải dùng outbox/saga hoặc document rõ consistency model.
+### Code Quality
 
-### 4.7 Idempotency Pattern
+| Metric | Limit |
+| --- | --- |
+| Max function length | Nên dưới 40 lines khi khả thi |
+| Max file length | Nên dưới 300 lines, trừ file cấu hình/schema |
+| Test coverage | Ưu tiên service/business logic mới |
+| Task size | Tối đa 4 giờ/task theo `TASKS.md` |
 
-Áp dụng cho:
+---
 
-- Payment callback/return.
-- Checkout trùng.
-- Mentor assignment duplicate.
+## NAMING CONVENTIONS
 
-Rule: Request lặp không được tạo side effect sai hoặc record trùng.
+### Backend
 
-### 4.8 Graceful Degradation Pattern
+| Type | Convention | Example |
+| --- | --- | --- |
+| Controllers | `[feature].controller.ts` | `payment.controller.ts` |
+| Services | `[feature].service.ts` | `payment.service.ts` |
+| Repositories | `[feature].repository.ts` | `payment.repository.ts` |
+| Validators | `[feature].validator.ts` | `payment.validator.ts` |
+| Config | `[provider].config.ts` | `vnpay.config.ts` |
+| Types/DTOs | `[feature].types.ts` | `payment.types.ts` |
+| Tables | snake_case | `payment_events` |
+| Functions | camelCase | `createPaymentCheckout()` |
+| Classes/types | PascalCase | `PaymentCheckoutResponse` |
 
-Áp dụng cho Reports.
+### Frontend
 
-Rule:
+| Type | Convention | Example |
+| --- | --- | --- |
+| Components | PascalCase | `PaymentButton.jsx` |
+| Pages | PascalCase | `CourseDetailPage.jsx` |
+| Hooks | camelCase | `usePaymentCheckout.js` |
+| Utils | camelCase | `formatCurrency.js` |
+| API clients | camelCase | `paymentApi.js` |
 
-- Một adapter fail không làm fail toàn dashboard.
-- Response có nullable data section và `warnings[]`.
-- Lỗi ngoài adapter boundary vẫn có thể là 500 nếu là lỗi hệ thống.
+### API Routes
 
-## 5. ERROR HANDLING
+| Type | Convention | Example |
+| --- | --- | --- |
+| Endpoints | plural resource | `/payments/create` |
+| Methods | uppercase in docs | `POST /payments/create` |
+| Error code | UPPER_SNAKE_CASE | `COURSE_NOT_FOUND` |
 
-Backend trả lỗi theo format đã duyệt, ví dụ:
+---
+
+## MODULE, API & DATABASE OWNERSHIP
+
+### Module Ownership
+
+| Member | Module | Main responsibility |
+| --- | --- | --- |
+| Member 1 - AnhND | Auth + Email + Profile | register, login, JWT, email verify/reset, profile, enrollment success email |
+| Member 2 - Nam | Course Catalog + Content | courses, categories, sections, lessons, course price/status |
+| Member 3 - CuongLH | Payment + Enrollment + Access | payments, orders, enrollments, my courses, course access |
+| Member 4 - Đức | Learning + Quiz + Final Project | learning dashboard, lessons, progress, quiz, final project submission |
+| Member 5 - Tiến | Mentor + Admin + Reports | mentor assignment, mentor review, admin users, reports |
+
+### API Ownership
+
+| API group | Owner | Notes |
+| --- | --- | --- |
+| `/auth/*` | Member 1 | register, login, verify, reset password |
+| `/email/*` | Member 1 | email system |
+| `/users/profile` | Member 1 | current user profile |
+| `/courses/*` | Member 2 | course list/detail/admin CRUD |
+| `/categories/*` | Member 2 | category CRUD |
+| `/sections/*`, `/lessons/*` | Member 2 | course content structure |
+| `/payments/*` | Member 3 | VNPAY, checkout, payment history |
+| `/enrollments/*`, `/my-courses` | Member 3 | enroll and course access |
+| `/learning/*`, `/progress/*` | Member 4 | learning and progress |
+| `/quizzes/*` | Member 4 | quiz and auto-grading |
+| `/projects/*` | Member 4 | learner final project submission |
+| `/mentor/*` | Member 5 | mentor queue and review |
+| `/admin/*` | Member 5 | dashboard, users, mentors, reports |
+
+### Database Ownership
+
+| Table/group | Owner | Other modules may use through |
+| --- | --- | --- |
+| `users` | Member 1 | Auth/User service contract |
+| `refresh_tokens` | Member 1 | Auth service |
+| `email_verifications`, `password_reset_tokens` | Member 1 | Auth/Email service |
+| `courses`, `categories`, `course_sections`, `lessons` | Member 2 | Course service contract |
+| `orders`, `payments`, `enrollments` | Member 3 | Payment/Enrollment service contract |
+| `lesson_progress`, `course_progress` | Member 4 | Learning/Progress service contract |
+| `quizzes`, `quiz_questions`, `quiz_submissions` | Member 4 | Quiz service contract |
+| `project_submissions` | Member 4 | Project submission service |
+| `mentor_assignments`, `project_reviews`, `mentor_feedbacks` | Member 5 | Mentor/Admin service |
+| `reports_optional` | Member 5 | Report service/repository |
+
+---
+
+## OCP DOMAIN RULES
+
+### Auth Rules
+
+1. JWT lưu trong httpOnly Cookie.
+2. Backend đọc token từ `req.cookies`.
+3. Frontend gửi request kèm cookie bằng `withCredentials: true`.
+4. Frontend không lưu JWT trong `localStorage` hoặc `sessionStorage`.
+5. Frontend không tự gắn `Authorization: Bearer <token>`.
+6. Backend không dùng `Authorization` header làm nguồn auth khi spec yêu cầu cookie auth.
+
+### Course Access Rules
+
+1. Paid course chỉ unlock khi có `enrollment` hợp lệ.
+2. Payment `PENDING` không cấp quyền học.
+3. Payment `SUCCESS` cũng không tự đủ để học nếu enrollment chưa được tạo theo flow.
+4. Learning/quiz/final project phải kiểm tra access qua Enrollment/Access contract.
+5. Frontend route guard không thay thế backend access check.
+
+### Payment Checkout Rules
+
+1. Request body MVP chỉ nhận `courseId`.
+2. Amount lấy từ Course Module, không lấy từ frontend.
+3. Checkout tạo hoặc reuse payment `PENDING`.
+4. VNPAY signed URL tạo ở backend.
+5. URL hết hạn sau 15 phút.
+6. Mỗi `userId + courseId` chỉ có một active `PENDING`.
+7. Duplicate checkout trước khi hết hạn reuse existing `checkout_url`.
+8. Checkout không verify VNPAY result.
+9. Checkout không cập nhật `SUCCESS/FAILED`.
+10. Checkout không tạo `enrollment`.
+11. Checkout không gửi email success.
+
+### Payment State Model
+
+```text
+[none] ──(initiate checkout)──► [pending_payment]
+                                      │
+                                      ├──(duplicate before expiry)──► [pending_payment]
+                                      │
+                                      └──(expires after 15 minutes)──► [expired]
+                                                                          │
+                                                                          └──(retry checkout)──► [pending_payment]
+```
+
+Invalid trong Payment Checkout:
+
+- `pending_payment -> success`
+- `pending_payment -> failed`
+- `pending_payment -> enrollment_created`
+- `pending_payment -> amount_changed`
+- `pending_payment -> payment_ref_changed`
+
+### Response Format Rules
+
+Success response:
+
+```json
+{
+  "success": true,
+  "message": "Payment checkout created successfully",
+  "data": {}
+}
+```
+
+Error response:
 
 ```json
 {
   "success": false,
   "message": "Course not found",
-  "code": "COURSE_NOT_FOUND"
+  "code": "COURSE_NOT_FOUND",
+  "details": {}
 }
 ```
 
-Các nhóm lỗi chính:
+---
 
-| Code | Ý nghĩa |
+## GIT CONVENTIONS
+
+### Branch Naming
+
+```text
+feat/[feature-name]      # New features
+fix/[bug-name]           # Bug fixes
+spec/[feature-name]      # Specification work
+chore/[short-name]       # Maintenance tasks
+```
+
+### Commit Format
+
+```text
+[type]([scope]): [description]
+
+Types: feat, fix, docs, style, refactor, test, chore, spec
+Scopes: auth, course, payment, enrollment, learning, quiz, mentor, admin
+```
+
+Examples:
+
+```text
+spec(payment): add checkout formal spec
+feat(payment): create pending checkout payment
+fix(auth): read jwt from httpOnly cookie
+test(payment): add duplicate checkout coverage
+```
+
+### Pull Request Rules
+
+- Minimum 1 approval before merge.
+- All relevant tests should pass.
+- No unrelated files.
+- No TODO comments left unless approved.
+- Reference relevant spec/task IDs.
+
+---
+
+## GITNEXUS INTEGRATION
+
+### Current Setup
+
+- Repository indexing status: Unknown in current environment.
+- Nếu GitNexus không khả dụng, agent phải báo rõ giới hạn trước khi thay đổi shared contract hoặc symbol có blast radius lớn.
+
+### Recommended Commands
+
+```bash
+gitnexus query "payment checkout" --limit 10
+gitnexus impact --target PaymentService --repo OCP
+gitnexus sync --repo OCP
+gitnexus status --repo OCP
+```
+
+### MCP Tools (when GitNexus MCP server is running)
+
+| Tool | Purpose |
 | --- | --- |
-| `UNAUTHENTICATED` | Chưa đăng nhập hoặc JWT không hợp lệ |
-| `FORBIDDEN` | Không có quyền |
-| `VALIDATION_ERROR` | Request sai format |
-| `NOT_FOUND` | Không tìm thấy tài nguyên |
-| `USER_HAS_TRANSACTION` | User có payment/enrollment nên không được hard delete |
-| `DUPLICATE_ASSIGNMENT` | Mentor đã được gán Course |
-| `MENTOR_NOT_ASSIGNED` | Mentor không được phân công vào Course |
-| `SUBMISSION_NOT_FOUND` | Không tìm thấy submission |
-| `ALREADY_REVIEWED` | Submission đã có final review |
-| `DEPENDENCY_UNAVAILABLE` | Contract/module ngoài timeout hoặc unavailable |
-| `PARTIAL_DATA` | Report trả partial data kèm warnings |
-| `INTERNAL_ERROR` | Lỗi hệ thống không mong muốn |
+| `gitnexus_query` | Tìm execution flows cho một concept |
+| `gitnexus_impact` | Blast radius analysis |
+| `gitnexus_context` | Full symbol context |
+| `gitnexus_detect_changes` | Map git changes to affected flows |
 
-Rule:
-
-- Không trả stack trace cho frontend.
-- Không trả lỗi SQL/Prisma thô.
-- Không leak secret, cookie, JWT, VNPAY secret.
-- Log backend phải redact dữ liệu nhạy cảm.
-
-## 6. NHỮNG GÌ KHÔNG NÊN LÀM
-
-### Không để frontend quyết định quyền truy cập
-
-Sai:
-
-- Ẩn nút học ở frontend rồi cho rằng user không thể học.
-- Cho frontend gửi `role`, `userId`, `isPaid`, `status`.
-
-Đúng:
-
-- Backend kiểm tra JWT, role, enrollment/access và Mentor assignment.
-
-### Không unlock course chỉ vì frontend báo payment success
-
-Sai:
-
-- Frontend nhận redirect từ VNPAY rồi gọi API unlock course.
-
-Đúng:
-
-- Backend verify VNPAY, cập nhật payment, tạo enrollment.
-
-### Không cho Mentor thao tác ngoài Course được gán
-
-Sai:
-
-- Role `MENTOR` là được chấm mọi Final Project.
-
-Đúng:
-
-- Role `MENTOR` + active assignment theo Course.
-
-### Không hard-delete dữ liệu quan trọng tùy tiện
-
-Dữ liệu không nên hard-delete nếu có lịch sử nghiệp vụ:
-
-- User.
-- Course.
-- Payment.
-- Enrollment.
-- Submission.
-- Review result.
-
-Nên dùng:
-
-- `status`.
-- `isDeleted`.
-- `deletedAt`.
-
-### Không viết report query tùy tiện trong controller
-
-Rule:
-
-- Report query nằm trong service/repository/adapter.
-- Raw SQL phải parameterized.
-- Report response chỉ trả aggregate cần thiết.
-
-## 7. FILE STRUCTURE QUAN TRỌNG
-
-### 7.1 Backend `/backend`
+### Workflow Integration
 
 ```text
-/backend
-  /src
-    /api            # Entry points, map endpoint tới controller
-    /controllers    # Nhận request, gọi service, trả response
-    /services       # Business logic
-    /repositories   # Data access, nơi import Prisma
-    /middlewares    # Auth, role, validation, error handling
-    /utils          # Helper thuần
-    /config         # Env và third-party config
-  /prisma
-    schema.prisma
-    /migrations
+Before editing shared symbol:
+1. Run impact analysis nếu tool khả dụng.
+2. Report blast radius nếu HIGH/CRITICAL.
+3. Get confirmation trước khi đổi public contract.
+
+Before committing:
+1. Detect changed symbols nếu tool khả dụng.
+2. Verify only expected areas changed.
+3. Investigate unexpected impact.
 ```
 
-Rules:
+---
 
-- Database access đi qua repository.
-- Business logic nằm trong service.
-- Controller chỉ nhận request/trả response.
-- Middleware xử lý auth, role, validation và error chung.
+## SEMBLE INTEGRATION
 
-### 7.2 Frontend `/frontend`
+### What is Semble?
 
-```text
-/frontend
-  /src
-    /api
-    /components
-    /pages
-    /routes
-    /layouts
-    /hooks
-    /utils
-```
+Semble là semantic code search tool dùng để tìm code theo ý nghĩa, không chỉ theo text matching.
 
-Rules:
+### Semble vs GitNexus - When to Use What?
 
-- API call đi qua `/src/api`.
-- Components không gọi endpoint trực tiếp nếu logic dùng lại nhiều nơi.
-- Role-based UI chỉ phục vụ UX.
-- `withCredentials: true` bắt buộc cho cookie auth.
+| Task | Tool | Why |
+| --- | --- | --- |
+| Find all payment checkout implementations | Semble | Semantic search |
+| What breaks if I change PaymentService? | GitNexus | Call graph + impact analysis |
+| Show code similar to auth middleware | Semble | Similarity detection |
+| Who calls `canAccessCourse`? | GitNexus | Relationship graph |
+| Trace checkout flow end-to-end | GitNexus | Execution flow analysis |
+| Find validation patterns | Semble | Pattern search |
 
-### 7.3 Specs Workspace
+Note: Nếu Semble không có trong môi trường hiện tại, dùng `rg` và đọc code thủ công.
 
-```text
-/Specs
-  /agent
-    AGENTS.md
-    PROJECT_AGENTS.md
-  /feat-admin-management
-    context.md
-    spec.md
-    plan.md
-    tasks.md
-  /feat-mentor-review
-    context.md
-    spec.md
-    plan.md
-    tasks.md
-  /feat-reports
-    context.md
-    spec.md
-    plan.md
-    tasks.md
-  constitution.md
-  share_context.md
-```
+---
 
-## 8. TESTING ƯU TIÊN
+## ANTI-PATTERNS (Tránh xa)
 
-Ưu tiên test các luồng có rủi ro cao:
+### Code Anti-Patterns
 
-### 8.1 Auth và Authorization
+| Anti-Pattern | Description | How to Avoid |
+| --- | --- | --- |
+| God Controller | Controller chứa validation, business logic, database calls | Chỉ nhận request, gọi service, trả response |
+| God Service | Một service làm quá nhiều module | Tách helper/service theo responsibility |
+| Prisma in Service | Service import Prisma trực tiếp | Chỉ repository được gọi Prisma |
+| Cross-module Query | Module này query table của module khác | Dùng service/contract |
+| Magic Requirement | Requirement thiếu ELSE/edge case | Bổ sung expected behavior trong spec |
+| The Implicit Assumption | Con người hiểu ngầm, AI không biết | Ghi rõ nguồn auth, owner, state, response format |
 
-- Cookie auth hợp lệ.
-- Bearer-only bị từ chối nếu spec yêu cầu cookie.
-- Non-admin bị chặn khỏi `/admin/*`.
-- Non-mentor bị chặn khỏi `/mentor/*`.
+### Payment Anti-Patterns
 
-### 8.2 Payment và Enrollment
+| Anti-Pattern | Description | How to Avoid |
+| --- | --- | --- |
+| Frontend Amount | Frontend gửi amount/price | Backend lấy price từ Course Module |
+| Pending Unlock | Payment `PENDING` mở khóa course | Chỉ enrollment hợp lệ mới unlock |
+| Callback Duplicate | Callback xử lý success nhiều lần | Idempotency bằng `paymentRef`/`transactionId` |
+| Secret Leak | Log VNPAY secret/signing payload | Mask secret, không log payload nhạy cảm |
+| Checkout Creates Enrollment | Checkout tạo enrollment trước verify | Tách checkout và verification |
 
-- Payment success tạo enrollment.
-- Callback lặp không tạo enrollment trùng.
-- Payment verify fail không unlock course.
-- Payment `PENDING` không cấp quyền học.
+### Auth Anti-Patterns
 
-### 8.3 Course Access
+| Anti-Pattern | Description | How to Avoid |
+| --- | --- | --- |
+| Bearer Drift | AI tự chuyển sang Bearer token | Ghi rõ cookie auth trong spec và API contract |
+| JWT in Storage | Lưu JWT ở localStorage/sessionStorage | Chỉ dùng httpOnly Cookie |
+| Frontend Role Trust | Tin role frontend gửi lên | Backend decode token và check DB/contract |
 
-- Learner chưa mua không xem được paid lesson.
-- Learner đã enroll xem được lesson.
-- Guest không truy cập API cần login.
+### Testing Anti-Patterns
 
-### 8.4 Mentor Permission
-
-- Mentor được gán Course thì thấy queue/chấm bài được.
-- Mentor không được gán Course thì bị 403.
-- Submission đã reviewed bị chặn review lại nếu MVP chốt one-final-review.
-
-### 8.5 Admin
-
-- Admin block/unblock user.
-- Admin hard delete user có payment/enrollment bị 409.
-- Admin gán Mentor trùng bị chặn.
-- Revoke assignment khi còn pending submissions xử lý đúng spec.
-
-### 8.6 Reports
-
-- Admin dashboard trả full data khi adapters success.
-- Payment adapter timeout vẫn HTTP 200 partial data.
-- Non-admin không gọi được report.
-- Report không mutate dữ liệu nguồn.
-- Date range invalid trả validation error.
-
-## 9. LESSONS LEARNED
-
-- Spec phải khóa trước khi AI implement.
-- Nếu AI phải đoán contract, spec chưa đủ rõ.
-- Backend quyết định quyền thật; frontend chỉ hỗ trợ UX.
-- Payment unlock phải verify từ VNPAY ở backend.
-- Mentor role chưa đủ; cần Course assignment.
-- Reports phải read-only và chịu lỗi từng phần.
-- Cross-module ownership phải được tôn trọng để tránh coupling.
-
-## 10. CURRENT SPRINT NOTES
-
-Focus:
-
-- Chuẩn hóa tài liệu agent context.
-- Chuẩn hóa SDD docs cho Admin Management, Mentor Review và Reports.
-- Resolve Open Questions trước khi implement.
-
-Blocked:
-
-- Auth cookie name và request user context chưa chốt.
-- User status schema chưa chốt.
-- Payment/Enrollment reader contracts chưa chốt.
-- Learning `SubmissionReader`/`SubmissionUpdater` contracts chưa chốt.
-- Reports default range/cache/export/refund policy chưa chốt.
-
-Next:
-
-1. Team Lead/Product Owner review `SPEC.md` của từng feature.
-2. Resolve open questions trong từng `context.md` và `plan.md`.
-3. Update status từ `DRAFT` sang `APPROVED` khi đủ điều kiện.
-4. Implement theo thứ tự: Admin Management -> Mentor Review -> Reports.
+| Anti-Pattern | Description | Fix |
+| --- | --- | --- |
+| No Assertion | Test chỉ chạy code | Assert expected output/state |
+| Only Happy Path | Không test lỗi | Thêm validation/auth/business error cases |
+| Race Untested | Không test duplicate checkout | Thêm concurrent/duplicate checkout test |
+| Brittle UI Tests | Test phụ thuộc text/layout dễ đổi | Ưu tiên API/service tests cho payment logic |
