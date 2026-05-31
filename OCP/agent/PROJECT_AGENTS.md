@@ -16,11 +16,9 @@
 
 ### Đọc trước
 
-1. `AGENTS.md` -> project context, forbidden patterns, sprint context
-2. `specs/feature-payment-checkout/SPEC.md` -> Formal Spec cho Payment Checkout
-3. `specs/feature-payment-checkout/PLAN.md` -> implementation plan
-4. `specs/feature-payment-checkout/TASKS.md` -> task breakdown
-5. File này -> architecture, workflow, patterns và conventions cho AI agent
+1. `AGENTS.md` → Project context đầy đủ (Tech stack, forbidden patterns, domain model)
+2. `CONSTITUTION.md` → Development principles và team agreements
+3. File này → Workflow, patterns, và conventions
 
 ---
 
@@ -136,10 +134,10 @@ OCP/
 │       ├── SPEC.md
 │       ├── PLAN.md
 │       └── TASKS.md
-├── ocp-api/
+├── backend/
 │   ├── src/
 │   └── prisma/
-└── ocp-web/
+└── frontend/
     └── src/
 ```
 
@@ -225,7 +223,7 @@ OCP/
 ### Backend (NodeJS + Prisma)
 
 ```text
-ocp-api/
+backend/
 ├── src/
 │   ├── api/              # API entry points, route definitions
 │   ├── controllers/      # Nhận request, gọi service, trả response
@@ -244,7 +242,7 @@ ocp-api/
 ### Frontend (React + Bootstrap)
 
 ```text
-ocp-web/
+frontend/
 ├── src/
 │   ├── api/              # API client, axios/fetch wrappers
 │   ├── components/       # Reusable components
