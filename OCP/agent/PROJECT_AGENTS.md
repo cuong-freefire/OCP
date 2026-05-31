@@ -9,16 +9,17 @@
 >
 > **Backend**: NodeJS + Express-style REST API + Prisma + MySQL
 > **Frontend**: React + Bootstrap
-> **Auth**: JWT lưu trong httpOnly Cookie + bcrypt
+> **Auth**: JWT lưu trong httpOnly Cookie + bcrypt + Google OAuth
 > **Payment**: VNPAY, backend ký URL và xác minh kết quả thanh toán
 >
 > **Nguyên tắc cứng**: Backend là source of truth cho auth, role, payment, enrollment và course access.
 
 ### Đọc trước
 
-1. `AGENTS.md` → Project context đầy đủ (Tech stack, forbidden patterns, domain model)
-2. `CONSTITUTION.md` → Development principles và team agreements
-3. File này → Workflow, patterns, và conventions
+1. `agent/AGENTS.md` → Project context đầy đủ (Tech stack, forbidden patterns, domain model)
+2. `constitution.md` → Development principles và team agreements
+3. `DATABASE.md` → Database design, auth tables, payment/enrollment schema
+4. File này → Workflow, patterns, và conventions
 
 ---
 
@@ -125,20 +126,23 @@
 
 ```text
 OCP/
-├── agents/
+├── agent/
 │   ├── AGENTS.md
 │   └── PROJECT_AGENTS.md
-├── specs/
-│   └── feature-payment-checkout/
-│       ├── CONTEXT.md
-│       ├── SPEC.md
-│       ├── PLAN.md
-│       └── TASKS.md
+├── sdd/
+│   └── specs/
+│       └── feat-[feature-name]/
+│           ├── context.md
+│           ├── spec.md
+│           ├── plan.md
+│           └── tasks.md
 ├── backend/
 │   ├── src/
 │   └── prisma/
-└── frontend/
-    └── src/
+├── frontend/
+│   └── src/
+├── DATABASE.md
+└── constitution.md
 ```
 
 ---
@@ -157,10 +161,10 @@ OCP/
 **Trade-off**: MySQL không hỗ trợ partial unique index như PostgreSQL; các constraint kiểu active `PENDING` cần transaction lock/application logic hoặc generated column.
 **Status**: Approved
 
-### ADR-003: JWT trong httpOnly Cookie cho authentication
-**Quyết định**: Auth token lưu trong httpOnly Cookie; backend đọc token từ `req.cookies`.
-**Lý do**: Giảm rủi ro token bị đọc bởi JavaScript, phù hợp rule bảo mật của project.
-**Trade-off**: Frontend phải dùng `withCredentials: true`; cần cấu hình CORS/cookie đúng.
+### ADR-003: Local auth + Google OAuth, JWT trong httpOnly Cookie
+**Quyết định**: Hỗ trợ đăng nhập local bằng email/password và đăng nhập Google OAuth; sau khi xác thực thành công, backend phát JWT trong httpOnly Cookie và đọc token từ `req.cookies`.
+**Lý do**: Giữ UX đăng nhập Google nhưng vẫn bảo toàn nguyên tắc backend là source of truth cho identity/session.
+**Trade-off**: Cần bảng `oauth_accounts`, verify Google ID token ở backend, và cấu hình CORS/cookie đúng với `withCredentials: true`.
 **Status**: Approved
 
 ### ADR-004: Backend là source of truth cho authorization
@@ -216,6 +220,11 @@ OCP/
 **Giải pháp**: Formal Spec mức 3 phải có ASCII state diagram và invalid transitions.
 **Áp dụng**: Payment, enrollment, course access, final project grading.
 
+### LESSON-006: Tách identity provider khỏi payment provider
+**Vấn đề**: Cùng tên `provider` có thể khiến AI nhầm `payments.provider = VNPAY` với Google login.
+**Giải pháp**: Auth dùng `oauth_accounts.provider = GOOGLE`; payment dùng `payments.provider = VNPAY`; không dùng lẫn hai khái niệm.
+**Áp dụng**: Auth, Google OAuth, Payment, Database schema.
+
 ---
 
 ## FILE STRUCTURE
@@ -257,12 +266,13 @@ frontend/
 ### Specs
 
 ```text
-specs/
-└── feature-payment-checkout/
-    ├── CONTEXT.md
-    ├── SPEC.md
-    ├── PLAN.md
-    └── TASKS.md
+sdd/
+└── specs/
+    └── feat-[feature-name]/
+        ├── context.md
+        ├── spec.md
+        ├── plan.md
+        └── tasks.md
 ```
 
 ---
@@ -305,8 +315,9 @@ Define     Plan      Split      Code       Verify    Review
 
 | Rule | Description |
 | --- | --- |
-| Read context first | Đọc `AGENTS.md`, `PROJECT_AGENTS.md`, spec/plan/task liên quan trước khi sửa |
+| Read context first | Đọc `agent/AGENTS.md`, `agent/PROJECT_AGENTS.md`, `DATABASE.md`, spec/plan/task liên quan trước khi sửa |
 | Cookie auth | Dùng JWT trong httpOnly Cookie, backend đọc `req.cookies` |
+| Google OAuth backend verify | Verify Google ID token ở backend trước khi tạo/link user |
 | Input validation | Dùng Zod cho body/query/params quan trọng |
 | Layered architecture | Route -> Middleware -> Controller -> Service -> Repository |
 | Backend authorization | Backend check role/user/enrollment/access |
@@ -322,6 +333,8 @@ Define     Plan      Split      Code       Verify    Review
 | --- | --- |
 | No Bearer auth | Không tự chuyển sang `Authorization: Bearer <token>` |
 | No localStorage JWT | Không lưu JWT trong `localStorage`/`sessionStorage` |
+| No raw OAuth tokens | Không lưu Google `id_token`, `access_token`, `refresh_token` vào DB/log |
+| No frontend identity trust | Không tin `email`, `name`, `avatar_url`, `providerUserId` do frontend tự gửi |
 | No frontend authority | Frontend không quyết định role, amount, status, access |
 | No Prisma in service | Service/controller không import Prisma |
 | No cross-module query | Không query table của module khác trực tiếp |
@@ -352,7 +365,7 @@ Define     Plan      Split      Code       Verify    Review
 | Services | `[feature].service.ts` | `payment.service.ts` |
 | Repositories | `[feature].repository.ts` | `payment.repository.ts` |
 | Validators | `[feature].validator.ts` | `payment.validator.ts` |
-| Config | `[provider].config.ts` | `vnpay.config.ts` |
+| Config | `[provider].config.ts` | `vnpay.config.ts`, `google.config.ts` |
 | Types/DTOs | `[feature].types.ts` | `payment.types.ts` |
 | Tables | snake_case | `payment_events` |
 | Functions | camelCase | `createPaymentCheckout()` |
@@ -384,7 +397,7 @@ Define     Plan      Split      Code       Verify    Review
 
 | Member | Module | Main responsibility |
 | --- | --- | --- |
-| Member 1 - AnhND | Auth + Email + Profile | register, login, JWT, email verify/reset, profile, enrollment success email |
+| Member 1 - AnhND | Auth + Email + Profile | register, login, Google OAuth, JWT, email verify/reset, profile, enrollment success email |
 | Member 2 - Nam | Course Catalog + Content | courses, categories, sections, lessons, course price/status |
 | Member 3 - CuongLH | Payment + Enrollment + Access | payments, orders, enrollments, my courses, course access |
 | Member 4 - Đức | Learning + Quiz + Final Project | learning dashboard, lessons, progress, quiz, final project submission |
@@ -394,7 +407,7 @@ Define     Plan      Split      Code       Verify    Review
 
 | API group | Owner | Notes |
 | --- | --- | --- |
-| `/auth/*` | Member 1 | register, login, verify, reset password |
+| `/auth/*` | Member 1 | register, login, Google OAuth, verify, reset password |
 | `/email/*` | Member 1 | email system |
 | `/users/profile` | Member 1 | current user profile |
 | `/courses/*` | Member 2 | course list/detail/admin CRUD |
@@ -412,7 +425,7 @@ Define     Plan      Split      Code       Verify    Review
 
 | Table/group | Owner | Other modules may use through |
 | --- | --- | --- |
-| `users` | Member 1 | Auth/User service contract |
+| `users`, `oauth_accounts` | Member 1 | Auth/User service contract |
 | `refresh_tokens` | Member 1 | Auth service |
 | `email_verifications`, `password_reset_tokens` | Member 1 | Auth/Email service |
 | `courses`, `categories`, `course_sections`, `lessons` | Member 2 | Course service contract |
@@ -435,6 +448,13 @@ Define     Plan      Split      Code       Verify    Review
 4. Frontend không lưu JWT trong `localStorage` hoặc `sessionStorage`.
 5. Frontend không tự gắn `Authorization: Bearer <token>`.
 6. Backend không dùng `Authorization` header làm nguồn auth khi spec yêu cầu cookie auth.
+7. Local login chỉ hợp lệ khi user có `password_hash`.
+8. Google OAuth phải verify Google ID token ở backend.
+9. Google account lookup dùng `oauth_accounts.provider = GOOGLE` và Google `sub` trong `provider_user_id`.
+10. Không dùng email làm định danh chính để link Google account; email chỉ dùng cho policy auto-link theo spec.
+11. Không lưu raw Google `id_token`, `access_token`, `refresh_token` vào database hoặc log.
+12. Google-only user được phép có `users.password_hash = NULL`.
+13. User `blocked` hoặc `deleted_at` không được login bằng local password hoặc Google OAuth.
 
 ### Course Access Rules
 
@@ -634,6 +654,9 @@ Note: Nếu Semble không có trong môi trường hiện tại, dùng `rg` và 
 | Bearer Drift | AI tự chuyển sang Bearer token | Ghi rõ cookie auth trong spec và API contract |
 | JWT in Storage | Lưu JWT ở localStorage/sessionStorage | Chỉ dùng httpOnly Cookie |
 | Frontend Role Trust | Tin role frontend gửi lên | Backend decode token và check DB/contract |
+| Frontend Google Trust | Tin Google profile/token do frontend parse sẵn | Backend verify Google ID token và lấy `sub` từ kết quả verify |
+| OAuth Token Storage | Lưu Google raw token trong DB/log | Chỉ lưu mapping `provider + provider_user_id` và profile đã sanitize |
+| Provider Confusion | Dùng `payments.provider` cho Google login | Auth dùng `oauth_accounts.provider`; payment dùng `payments.provider` |
 
 ### Testing Anti-Patterns
 

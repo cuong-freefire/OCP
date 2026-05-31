@@ -4,12 +4,12 @@ Tài liệu này định nghĩa cấu trúc cơ sở dữ liệu cho hệ thốn
 
 Mục tiêu thiết kế:
 
-- Hỗ trợ luồng học viên đăng ký, xác thực email, đăng nhập và quản lý hồ sơ.
+- Hỗ trợ luồng học viên đăng ký, xác thực email, đăng nhập bằng email/password hoặc Google OAuth, và quản lý hồ sơ.
 - Hỗ trợ Guest/Learner xem khóa học, section, lesson và preview content.
 - Hỗ trợ thanh toán khóa học trả phí qua VNPAY, lưu lịch sử thanh toán, chống xử lý trùng.
 - Hỗ trợ enrollment, course access, learning progress, quiz và final project.
 - Hỗ trợ mentor review, admin dashboard/report và notification cơ bản.
-- Giữ đúng ranh giới module trong `AGENTS.md`, `PROJECT_AGENTS1.md` và `chia job (1).docx`.
+- Giữ đúng ranh giới module trong `AGENTS.md`, `PROJECT_AGENTS.md` và `chia job (1).docx`.
 
 ---
 
@@ -18,6 +18,7 @@ Mục tiêu thiết kế:
 ```mermaid
 erDiagram
     roles ||--o{ users : "has"
+    users ||--o{ oauth_accounts : "links"
     users ||--o{ refresh_tokens : "owns"
     users ||--o{ email_verifications : "verifies"
     users ||--o{ password_reset_tokens : "resets"
@@ -73,14 +74,14 @@ erDiagram
    - Master data như `users`, `courses`, `categories`, `lessons` dùng `is_active` và/hoặc `deleted_at`.
    - Transaction data như `payments`, `orders`, `enrollments`, `project_submissions` không xóa cứng; dùng `status`.
 5. **Ranh giới module:** Module không query trực tiếp bảng do module khác sở hữu. Cross-module data phải đi qua service/contract.
-6. **Auth:** JWT lưu trong httpOnly Cookie; database không lưu JWT access token. Nếu dùng refresh flow, chỉ lưu refresh token đã hash.
+6. **Auth:** JWT lưu trong httpOnly Cookie; database không lưu JWT access token. Hệ thống hỗ trợ local login bằng email/password và Google OAuth. Nếu dùng refresh flow, chỉ lưu refresh token đã hash; không lưu raw Google `id_token`, `access_token` hoặc `refresh_token`.
 7. **Payment:** Frontend không quyết định `amount`, `payment_ref`, `status`, `user_id`. Backend snapshot `amount` từ Course Module tại thời điểm tạo payment.
 8. **Course access:** Paid course chỉ unlock khi có `enrollment` hợp lệ. Payment `PENDING` không cấp quyền học.
 9. **MySQL partial index:** MySQL không hỗ trợ partial unique index kiểu PostgreSQL. Rule "một active PENDING payment cho `user_id + course_id`" phải enforce bằng transaction lock/application lock; generated column chỉ là lựa chọn nâng cao.
 
 ---
 
-## 3. Chi Tiết Từng Bảng (25 Bảng, 8 Nhóm)
+## 3. Chi Tiết Từng Bảng (26 Bảng, 8 Nhóm)
 
 ### 3.1 Nhóm Người Dùng, Auth & Email
 
@@ -107,13 +108,34 @@ erDiagram
 | `phone` | VARCHAR(20) | NULL |
 | `avatar_url` | VARCHAR(500) | NULL |
 | `bio` | TEXT | NULL |
-| `password_hash` | VARCHAR(255) | NOT NULL, không bao giờ trả về frontend |
+| `password_hash` | VARCHAR(255) | NULL với user chỉ đăng nhập Google; NOT NULL với local email/password account; không bao giờ trả về frontend |
 | `email_verified` | BOOLEAN | DEFAULT false, NOT NULL |
 | `status` | VARCHAR(20) | NOT NULL, CHECK IN (`active`, `blocked`, `pending_verification`) |
 | `last_login_at` | DATETIME(3) | NULL |
 | `created_at` | DATETIME(3) | DEFAULT CURRENT_TIMESTAMP(3) |
 | `updated_at` | DATETIME(3) | DEFAULT CURRENT_TIMESTAMP(3) |
 | `deleted_at` | DATETIME(3) | NULL, soft delete nếu cần |
+
+#### `oauth_accounts` (Tài khoản đăng nhập bên ngoài)
+
+| Cột | Kiểu | Ghi chú / Ràng buộc |
+|:---|:---|:---|
+| `id` | CHAR(36) | PRIMARY KEY |
+| `user_id` | CHAR(36) | FOREIGN KEY -> `users(id)`, NOT NULL |
+| `provider` | VARCHAR(30) | NOT NULL, CHECK IN (`GOOGLE`) |
+| `provider_user_id` | VARCHAR(255) | NOT NULL; Google `sub`, định danh ổn định của tài khoản Google |
+| `provider_email` | VARCHAR(255) | NOT NULL; email nhận từ Google sau khi backend verify token |
+| `provider_email_verified` | BOOLEAN | DEFAULT false, NOT NULL |
+| `provider_display_name` | VARCHAR(120) | NULL |
+| `provider_avatar_url` | VARCHAR(500) | NULL |
+| `metadata` | JSON | NULL; profile payload đã sanitize, không chứa token/secret |
+| `linked_at` | DATETIME(3) | DEFAULT CURRENT_TIMESTAMP(3) |
+| `last_login_at` | DATETIME(3) | NULL |
+| `created_at` | DATETIME(3) | DEFAULT CURRENT_TIMESTAMP(3) |
+| `updated_at` | DATETIME(3) | DEFAULT CURRENT_TIMESTAMP(3) |
+| *Ràng buộc* | | UNIQUE(`provider`, `provider_user_id`), UNIQUE(`user_id`, `provider`) |
+
+Ghi chú: Google login không thay thế bảng `users`. Sau khi backend verify Google ID token thành công, hệ thống map `oauth_accounts.provider = GOOGLE` + `provider_user_id = sub` về một `users.id`, rồi phát JWT httpOnly Cookie giống local login.
 
 #### `refresh_tokens` (Refresh token)
 
@@ -257,6 +279,8 @@ erDiagram
 | `expires_at` | DATETIME(3) | NOT NULL |
 | `created_at` | DATETIME(3) | DEFAULT CURRENT_TIMESTAMP(3) |
 | `updated_at` | DATETIME(3) | DEFAULT CURRENT_TIMESTAMP(3) |
+
+Ghi chú: `payments.provider` là nhà cung cấp thanh toán, hiện mặc định `VNPAY`; không dùng cột này cho Google login.
 
 #### `payment_events` (Sự kiện payment/audit payment)
 
@@ -506,6 +530,30 @@ CREATE UNIQUE INDEX idx_users_email ON users (email);
 CREATE UNIQUE INDEX idx_roles_code ON roles (code);
 ```
 
+```sql
+CREATE UNIQUE INDEX idx_oauth_accounts_provider_user
+  ON oauth_accounts (provider, provider_user_id);
+```
+
+```sql
+CREATE UNIQUE INDEX idx_oauth_accounts_user_provider
+  ON oauth_accounts (user_id, provider);
+```
+
+```sql
+ALTER TABLE oauth_accounts
+  ADD CONSTRAINT chk_oauth_accounts_provider
+  CHECK (provider IN ('GOOGLE'));
+```
+
+Rule bắt buộc ở service layer:
+
+- Local login chỉ hợp lệ khi `users.password_hash IS NOT NULL`.
+- Google login phải verify Google ID token ở backend; không tin `email`, `name`, `avatar_url` do frontend tự gửi.
+- Google account lookup dùng `oauth_accounts.provider + oauth_accounts.provider_user_id`, không dùng email làm định danh chính.
+- Nếu Google email đã verify và trùng `users.email`, việc auto-link hay từ chối phải theo Auth spec; không tự tạo user trùng email.
+- User `blocked` hoặc đã `deleted_at` không được đăng nhập bằng local password hoặc Google OAuth.
+
 ### 4.2 Course Constraints
 
 ```sql
@@ -617,6 +665,7 @@ Rule bắt buộc ở service layer:
 
 ```sql
 CREATE INDEX idx_users_role_status ON users (role_id, status);
+CREATE INDEX idx_oauth_accounts_provider_email ON oauth_accounts (provider, provider_email);
 CREATE INDEX idx_refresh_tokens_user ON refresh_tokens (user_id, expires_at);
 CREATE INDEX idx_email_verifications_user ON email_verifications (user_id, expires_at);
 CREATE INDEX idx_password_reset_tokens_user ON password_reset_tokens (user_id, expires_at);
@@ -680,5 +729,7 @@ CREATE INDEX idx_audit_logs_time ON audit_logs (created_at DESC);
 3. Không tự viết raw SQL trong service. Nếu cần `SELECT ... FOR UPDATE` cho payment race condition, chỉ đặt trong repository và ghi rõ lý do.
 4. Migration cũ không được sửa/xóa sau khi đã apply vào database chung.
 5. `provider_payload`, `metadata`, `permissions`, `answers`, `options`, `correct_answer`, `data` dùng JSON nhưng phải sanitize trước khi lưu.
-6. Không lưu secret VNPAY, JWT, password plain text, raw reset token hoặc raw verification token vào DB.
-7. Các bảng `payment_events`, `audit_logs`, `notifications`, `report_snapshots` có thể triển khai sau nếu MVP muốn giảm scope, nhưng `payments` và `enrollments` là bắt buộc cho paid course access.
+6. Không lưu secret VNPAY, JWT, password plain text, raw reset token, raw verification token, Google `id_token`, Google `access_token` hoặc Google `refresh_token` vào DB.
+7. Với Google-only user, `users.password_hash` được phép `NULL`; nếu người dùng muốn đăng nhập local password sau này, phải đi qua flow set password riêng.
+8. `payments.provider` là payment provider như `VNPAY`; `oauth_accounts.provider` là identity provider như `GOOGLE`. Không dùng lẫn hai khái niệm này.
+9. Các bảng `payment_events`, `audit_logs`, `notifications`, `report_snapshots` có thể triển khai sau nếu MVP muốn giảm scope, nhưng `payments` và `enrollments` là bắt buộc cho paid course access.
