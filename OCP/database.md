@@ -1,699 +1,684 @@
-# Tài liệu thiết kế Database - Hệ thống E-learning / LMS
+# Tài Liệu Thiết Kế Cơ Sở Dữ Liệu OCP (MySQL + Prisma)
 
-## 1. Tổng quan hệ thống (Overview)
+Tài liệu này định nghĩa cấu trúc cơ sở dữ liệu cho hệ thống **Online Course Platform (OCP)**. Cơ sở dữ liệu sử dụng **MySQL** và được truy cập qua **Prisma** trong backend NodeJS/Express-style API.
 
-Tài liệu này mô tả thiết kế cơ sở dữ liệu cho hệ thống **E-learning / LMS (Learning Management System)**. Database được thiết kế để hỗ trợ các nghiệp vụ chính sau:
+Mục tiêu thiết kế:
 
-- Quản lý người dùng, xác thực, phân quyền và phiên đăng nhập.
-- Quản lý danh mục, khóa học, chương học và bài học.
-- Quản lý đăng ký khóa học, tiến độ học tập theo bài học và toàn khóa học.
-- Quản lý bài kiểm tra, bài nộp dự án và kết quả đánh giá.
-- Quản lý phản hồi giữa mentor/giảng viên và học viên.
-- Quản lý đơn hàng, thanh toán và giao dịch mua khóa học.
-- Quản lý báo cáo vi phạm và thông báo hệ thống.
-
-Thiết kế này ưu tiên tính mở rộng, tính toàn vẹn dữ liệu, khả năng truy vấn nhanh và phù hợp với mô hình backend REST API hoặc GraphQL. Kiểu dữ liệu được định hướng theo **PostgreSQL** với khóa chính dạng `UUID`. Nếu sử dụng MySQL, có thể thay `UUID` bằng `CHAR(36)` hoặc `BIGINT AUTO_INCREMENT` tùy chuẩn dự án.
-
-> Ghi chú: Danh sách bảng hiện tại chưa có bảng `order_items`, vì vậy thiết kế giả định mỗi `orders` gắn với một khóa học (`course_id`). Nếu hệ thống cần giỏ hàng hoặc một đơn hàng chứa nhiều khóa học, nên bổ sung bảng `order_items`.
+- Hỗ trợ luồng học viên đăng ký, xác thực email, đăng nhập và quản lý hồ sơ.
+- Hỗ trợ Guest/Learner xem khóa học, section, lesson và preview content.
+- Hỗ trợ thanh toán khóa học trả phí qua VNPAY, lưu lịch sử thanh toán, chống xử lý trùng.
+- Hỗ trợ enrollment, course access, learning progress, quiz và final project.
+- Hỗ trợ mentor review, admin dashboard/report và notification cơ bản.
+- Giữ đúng ranh giới module trong `AGENTS.md`, `PROJECT_AGENTS1.md` và `chia job (1).docx`.
 
 ---
 
-## 2. Sơ đồ thực thể (ERD)
+## 1. Sơ đồ Quan hệ Thực thể (ERD)
 
 ```mermaid
 erDiagram
-    USERS ||--o{ REFRESH_TOKENS : owns
-    USERS ||--o{ EMAIL_VERIFICATIONS : requests
-    USERS ||--o{ COURSES : teaches
-    USERS ||--o{ ENROLLMENTS : enrolls
-    USERS ||--o{ QUIZ_SUBMISSIONS : submits
-    USERS ||--o{ PROJECT_SUBMISSIONS : submits
-    USERS ||--o{ PROJECT_REVIEWS : reviews
-    USERS ||--o{ MENTOR_FEEDBACKS : receives
-    USERS ||--o{ MENTOR_FEEDBACKS : gives
-    USERS ||--o{ ORDERS : places
-    USERS ||--o{ PAYMENTS : pays
-    USERS ||--o{ REPORTS : creates
-    USERS ||--o{ NOTIFICATIONS : receives
+    roles ||--o{ users : "has"
+    users ||--o{ refresh_tokens : "owns"
+    users ||--o{ email_verifications : "verifies"
+    users ||--o{ password_reset_tokens : "resets"
 
-    CATEGORIES ||--o{ CATEGORIES : parent_of
-    CATEGORIES ||--o{ COURSES : contains
+    categories ||--o{ courses : "classifies"
+    users ||--o{ courses : "created_by"
+    courses ||--o{ course_sections : "has"
+    course_sections ||--o{ lessons : "contains"
 
-    COURSES ||--o{ COURSE_SECTIONS : has
-    COURSES ||--o{ LESSONS : contains
-    COURSE_SECTIONS ||--o{ LESSONS : has
+    users ||--o{ orders : "places"
+    courses ||--o{ orders : "ordered_for"
+    orders ||--o{ payments : "paid_by"
+    users ||--o{ payments : "pays"
+    courses ||--o{ payments : "paid_course"
+    payments ||--o{ payment_events : "records"
+    payments ||--o| enrollments : "creates_after_success"
 
-    COURSES ||--o{ ENROLLMENTS : has
-    ORDERS ||--o| ENROLLMENTS : creates
-    ENROLLMENTS ||--o{ LESSON_PROGRESS : tracks
-    ENROLLMENTS ||--|| COURSE_PROGRESS : summarizes
+    users ||--o{ enrollments : "enrolls"
+    courses ||--o{ enrollments : "enrolled_course"
+    users ||--o{ course_progress : "tracks"
+    courses ||--o{ course_progress : "tracked_course"
+    users ||--o{ lesson_progress : "completes"
+    lessons ||--o{ lesson_progress : "tracked_lesson"
 
-    LESSONS ||--o{ LESSON_PROGRESS : tracked_by
-    LESSONS ||--o{ QUIZZES : includes
-    COURSES ||--o{ QUIZZES : has
-    QUIZZES ||--o{ QUIZ_SUBMISSIONS : receives
-    ENROLLMENTS ||--o{ QUIZ_SUBMISSIONS : includes
+    courses ||--o{ quizzes : "has"
+    lessons ||--o{ quizzes : "attached_to"
+    quizzes ||--o{ quiz_questions : "contains"
+    quizzes ||--o{ quiz_submissions : "submitted_for"
+    users ||--o{ quiz_submissions : "submits"
 
-    COURSES ||--o{ PROJECT_SUBMISSIONS : has
-    LESSONS ||--o{ PROJECT_SUBMISSIONS : assigned_in
-    ENROLLMENTS ||--o{ PROJECT_SUBMISSIONS : includes
-    PROJECT_SUBMISSIONS ||--o{ PROJECT_REVIEWS : receives
+    users ||--o{ project_submissions : "submits"
+    courses ||--o{ project_submissions : "final_project_for"
+    project_submissions ||--o{ project_reviews : "reviewed_by"
+    users ||--o{ project_reviews : "mentor_reviews"
+    project_reviews ||--o{ mentor_feedbacks : "has_feedback"
 
-    COURSES ||--o{ MENTOR_FEEDBACKS : related_to
-    ENROLLMENTS ||--o{ MENTOR_FEEDBACKS : related_to
+    users ||--o{ mentor_assignments : "mentor"
+    courses ||--o{ mentor_assignments : "assigned_course"
 
-    COURSES ||--o{ ORDERS : purchased_in
-    ORDERS ||--o{ PAYMENTS : paid_by
+    users ||--o{ notifications : "receives"
+    users ||--o{ audit_logs : "actor"
+    users ||--o{ report_snapshots : "created_by"
 ```
 
 ---
 
-## 3. Thiết kế chi tiết từng bảng
+## 2. Quy Tắc Thiết Kế Chung
 
-## 3.1. Module Người dùng & Xác thực (User & Auth)
-
-### 3.1.1. Table: `users`
-
-Lưu thông tin tài khoản người dùng trong hệ thống, bao gồm admin, giảng viên/mentor và học viên.
-
-| Field | Data Type | Constraints | Description |
-|---|---|---|---|
-| id | UUID | PK, DEFAULT gen_random_uuid() | Mã định danh duy nhất của người dùng. |
-| full_name | VARCHAR(150) | NOT NULL | Họ và tên người dùng. |
-| email | VARCHAR(255) | NOT NULL, UNIQUE | Email đăng nhập, không được trùng. |
-| password_hash | VARCHAR(255) | NOT NULL | Mật khẩu đã được mã hóa bằng bcrypt/argon2. |
-| phone | VARCHAR(20) | NULL, UNIQUE | Số điện thoại người dùng, có thể dùng cho xác minh sau này. |
-| avatar_url | TEXT | NULL | Đường dẫn ảnh đại diện. |
-| role | VARCHAR(30) | NOT NULL, DEFAULT 'student' | Vai trò: `admin`, `instructor`, `mentor`, `student`. |
-| status | VARCHAR(30) | NOT NULL, DEFAULT 'active' | Trạng thái tài khoản: `active`, `inactive`, `banned`, `pending`. |
-| email_verified_at | TIMESTAMP | NULL | Thời điểm email được xác minh. |
-| last_login_at | TIMESTAMP | NULL | Thời điểm đăng nhập gần nhất. |
-| created_at | TIMESTAMP | NOT NULL, DEFAULT CURRENT_TIMESTAMP | Thời điểm tạo tài khoản. |
-| updated_at | TIMESTAMP | NOT NULL, DEFAULT CURRENT_TIMESTAMP | Thời điểm cập nhật tài khoản gần nhất. |
-| deleted_at | TIMESTAMP | NULL | Thời điểm xóa mềm tài khoản, nếu có. |
+1. **Khóa chính (Primary Key):** Dùng UUID cho tất cả bảng. Với MySQL + Prisma, khuyến nghị lưu dạng `CHAR(36)` qua `String @id @default(uuid()) @db.Char(36)`.
+2. **Kiểu dữ liệu tiền tệ:** Dùng `DECIMAL(15,2)` cho giá khóa học, order amount và payment amount. Không dùng `FLOAT/DOUBLE` cho tiền.
+3. **Múi giờ:** Lưu thời gian dạng UTC bằng `DATETIME(3)` hoặc `TIMESTAMP(3)` thống nhất trong toàn hệ thống.
+4. **Xóa mềm (Soft Delete):**
+   - Master data như `users`, `courses`, `categories`, `lessons` dùng `is_active` và/hoặc `deleted_at`.
+   - Transaction data như `payments`, `orders`, `enrollments`, `project_submissions` không xóa cứng; dùng `status`.
+5. **Ranh giới module:** Module không query trực tiếp bảng do module khác sở hữu. Cross-module data phải đi qua service/contract.
+6. **Auth:** JWT lưu trong httpOnly Cookie; database không lưu JWT access token. Nếu dùng refresh flow, chỉ lưu refresh token đã hash.
+7. **Payment:** Frontend không quyết định `amount`, `payment_ref`, `status`, `user_id`. Backend snapshot `amount` từ Course Module tại thời điểm tạo payment.
+8. **Course access:** Paid course chỉ unlock khi có `enrollment` hợp lệ. Payment `PENDING` không cấp quyền học.
+9. **MySQL partial index:** MySQL không hỗ trợ partial unique index kiểu PostgreSQL. Rule "một active PENDING payment cho `user_id + course_id`" phải enforce bằng transaction lock/application lock; generated column chỉ là lựa chọn nâng cao.
 
 ---
 
-### 3.1.2. Table: `refresh_tokens`
+## 3. Chi Tiết Từng Bảng (25 Bảng, 8 Nhóm)
 
-Lưu refresh token dùng để cấp lại access token mà không yêu cầu người dùng đăng nhập lại.
+### 3.1 Nhóm Người Dùng, Auth & Email
 
-| Field | Data Type | Constraints | Description |
-|---|---|---|---|
-| id | UUID | PK, DEFAULT gen_random_uuid() | Mã định danh refresh token. |
-| user_id | UUID | FK -> users(id), NOT NULL | Người dùng sở hữu token. |
-| token_hash | VARCHAR(255) | NOT NULL, UNIQUE | Refresh token đã được hash, không lưu token gốc. |
-| device_info | TEXT | NULL | Thông tin thiết bị hoặc trình duyệt đăng nhập. |
-| ip_address | VARCHAR(45) | NULL | Địa chỉ IP khi tạo token, hỗ trợ IPv4/IPv6. |
-| expires_at | TIMESTAMP | NOT NULL | Thời điểm hết hạn token. |
-| revoked_at | TIMESTAMP | NULL | Thời điểm token bị thu hồi. |
-| created_at | TIMESTAMP | NOT NULL, DEFAULT CURRENT_TIMESTAMP | Thời điểm tạo token. |
+#### `roles` (Vai trò)
 
----
+| Cột | Kiểu | Ghi chú / Ràng buộc |
+|:---|:---|:---|
+| `id` | CHAR(36) | PRIMARY KEY |
+| `code` | VARCHAR(50) | UNIQUE, NOT NULL. Ví dụ: `ADMIN`, `LEARNER`, `MENTOR` |
+| `name` | VARCHAR(100) | NOT NULL |
+| `permissions` | JSON | Danh sách quyền nếu project cần permission chi tiết |
+| `is_active` | BOOLEAN | DEFAULT true, NOT NULL |
+| `created_at` | DATETIME(3) | DEFAULT CURRENT_TIMESTAMP(3) |
+| `updated_at` | DATETIME(3) | DEFAULT CURRENT_TIMESTAMP(3) |
 
-### 3.1.3. Table: `email_verifications`
+#### `users` (Người dùng)
 
-Lưu thông tin xác minh email, đặt lại mật khẩu hoặc các yêu cầu xác thực qua email.
+| Cột | Kiểu | Ghi chú / Ràng buộc |
+|:---|:---|:---|
+| `id` | CHAR(36) | PRIMARY KEY |
+| `role_id` | CHAR(36) | FOREIGN KEY -> `roles(id)`, NOT NULL |
+| `name` | VARCHAR(120) | NOT NULL |
+| `email` | VARCHAR(255) | UNIQUE, NOT NULL |
+| `phone` | VARCHAR(20) | NULL |
+| `avatar_url` | VARCHAR(500) | NULL |
+| `bio` | TEXT | NULL |
+| `password_hash` | VARCHAR(255) | NOT NULL, không bao giờ trả về frontend |
+| `email_verified` | BOOLEAN | DEFAULT false, NOT NULL |
+| `status` | VARCHAR(20) | NOT NULL, CHECK IN (`active`, `blocked`, `pending_verification`) |
+| `last_login_at` | DATETIME(3) | NULL |
+| `created_at` | DATETIME(3) | DEFAULT CURRENT_TIMESTAMP(3) |
+| `updated_at` | DATETIME(3) | DEFAULT CURRENT_TIMESTAMP(3) |
+| `deleted_at` | DATETIME(3) | NULL, soft delete nếu cần |
 
-| Field | Data Type | Constraints | Description |
-|---|---|---|---|
-| id | UUID | PK, DEFAULT gen_random_uuid() | Mã định danh yêu cầu xác minh. |
-| user_id | UUID | FK -> users(id), NULL | Người dùng liên quan, có thể NULL trong trường hợp đăng ký chưa hoàn tất. |
-| email | VARCHAR(255) | NOT NULL | Email cần xác minh. |
-| token_hash | VARCHAR(255) | NOT NULL, UNIQUE | Token/OTP đã hash dùng để xác minh. |
-| purpose | VARCHAR(50) | NOT NULL | Mục đích: `verify_email`, `reset_password`, `change_email`. |
-| expires_at | TIMESTAMP | NOT NULL | Thời điểm hết hạn mã xác minh. |
-| verified_at | TIMESTAMP | NULL | Thời điểm xác minh thành công. |
-| created_at | TIMESTAMP | NOT NULL, DEFAULT CURRENT_TIMESTAMP | Thời điểm tạo yêu cầu xác minh. |
+#### `refresh_tokens` (Refresh token)
 
----
+| Cột | Kiểu | Ghi chú / Ràng buộc |
+|:---|:---|:---|
+| `id` | CHAR(36) | PRIMARY KEY |
+| `user_id` | CHAR(36) | FOREIGN KEY -> `users(id)`, NOT NULL |
+| `token_hash` | VARCHAR(255) | UNIQUE, NOT NULL; không lưu raw token |
+| `expires_at` | DATETIME(3) | NOT NULL |
+| `revoked_at` | DATETIME(3) | NULL |
+| `created_at` | DATETIME(3) | DEFAULT CURRENT_TIMESTAMP(3) |
 
-## 3.2. Module Khóa học & Nội dung (Courses & Content)
+#### `email_verifications` (Token xác thực email)
 
-### 3.2.1. Table: `categories`
+| Cột | Kiểu | Ghi chú / Ràng buộc |
+|:---|:---|:---|
+| `id` | CHAR(36) | PRIMARY KEY |
+| `user_id` | CHAR(36) | FOREIGN KEY -> `users(id)`, NOT NULL |
+| `token_hash` | VARCHAR(255) | UNIQUE, NOT NULL |
+| `expires_at` | DATETIME(3) | NOT NULL |
+| `used_at` | DATETIME(3) | NULL |
+| `created_at` | DATETIME(3) | DEFAULT CURRENT_TIMESTAMP(3) |
 
-Lưu danh mục khóa học. Bảng này hỗ trợ danh mục cha - con thông qua `parent_id`.
+#### `password_reset_tokens` (Token đặt lại mật khẩu)
 
-| Field | Data Type | Constraints | Description |
-|---|---|---|---|
-| id | UUID | PK, DEFAULT gen_random_uuid() | Mã định danh danh mục. |
-| parent_id | UUID | FK -> categories(id), NULL | Danh mục cha, dùng cho phân cấp danh mục. |
-| name | VARCHAR(150) | NOT NULL | Tên danh mục. |
-| slug | VARCHAR(180) | NOT NULL, UNIQUE | Chuỗi URL thân thiện, ví dụ `web-development`. |
-| description | TEXT | NULL | Mô tả danh mục. |
-| icon_url | TEXT | NULL | Đường dẫn icon hoặc ảnh đại diện danh mục. |
-| sort_order | INT | NOT NULL, DEFAULT 0 | Thứ tự hiển thị danh mục. |
-| is_active | BOOLEAN | NOT NULL, DEFAULT TRUE | Trạng thái hiển thị của danh mục. |
-| created_at | TIMESTAMP | NOT NULL, DEFAULT CURRENT_TIMESTAMP | Thời điểm tạo danh mục. |
-| updated_at | TIMESTAMP | NOT NULL, DEFAULT CURRENT_TIMESTAMP | Thời điểm cập nhật danh mục. |
-
----
-
-### 3.2.2. Table: `courses`
-
-Lưu thông tin khóa học, bao gồm giảng viên, danh mục, giá bán và trạng thái xuất bản.
-
-| Field | Data Type | Constraints | Description |
-|---|---|---|---|
-| id | UUID | PK, DEFAULT gen_random_uuid() | Mã định danh khóa học. |
-| category_id | UUID | FK -> categories(id), NOT NULL | Danh mục của khóa học. |
-| instructor_id | UUID | FK -> users(id), NOT NULL | Người tạo/giảng viên phụ trách khóa học. |
-| title | VARCHAR(255) | NOT NULL | Tên khóa học. |
-| slug | VARCHAR(280) | NOT NULL, UNIQUE | Chuỗi URL thân thiện của khóa học. |
-| short_description | VARCHAR(500) | NULL | Mô tả ngắn hiển thị trên danh sách khóa học. |
-| description | TEXT | NULL | Mô tả chi tiết khóa học. |
-| thumbnail_url | TEXT | NULL | Ảnh đại diện khóa học. |
-| level | VARCHAR(30) | NOT NULL, DEFAULT 'beginner' | Cấp độ: `beginner`, `intermediate`, `advanced`. |
-| language | VARCHAR(20) | NOT NULL, DEFAULT 'vi' | Ngôn ngữ chính của khóa học. |
-| price | DECIMAL(12,2) | NOT NULL, DEFAULT 0 | Giá gốc của khóa học. |
-| discount_price | DECIMAL(12,2) | NULL | Giá khuyến mãi, nếu có. |
-| status | VARCHAR(30) | NOT NULL, DEFAULT 'draft' | Trạng thái: `draft`, `pending_review`, `published`, `archived`. |
-| total_duration_minutes | INT | NOT NULL, DEFAULT 0 | Tổng thời lượng học tính theo phút. |
-| published_at | TIMESTAMP | NULL | Thời điểm khóa học được xuất bản. |
-| created_at | TIMESTAMP | NOT NULL, DEFAULT CURRENT_TIMESTAMP | Thời điểm tạo khóa học. |
-| updated_at | TIMESTAMP | NOT NULL, DEFAULT CURRENT_TIMESTAMP | Thời điểm cập nhật khóa học. |
-| deleted_at | TIMESTAMP | NULL | Thời điểm xóa mềm khóa học. |
+| Cột | Kiểu | Ghi chú / Ràng buộc |
+|:---|:---|:---|
+| `id` | CHAR(36) | PRIMARY KEY |
+| `user_id` | CHAR(36) | FOREIGN KEY -> `users(id)`, NOT NULL |
+| `token_hash` | VARCHAR(255) | UNIQUE, NOT NULL |
+| `expires_at` | DATETIME(3) | NOT NULL |
+| `used_at` | DATETIME(3) | NULL |
+| `created_at` | DATETIME(3) | DEFAULT CURRENT_TIMESTAMP(3) |
 
 ---
 
-### 3.2.3. Table: `course_sections`
+### 3.2 Nhóm Course Catalog & Content
 
-Lưu các chương/phần trong một khóa học.
+#### `categories` (Danh mục khóa học)
 
-| Field | Data Type | Constraints | Description |
-|---|---|---|---|
-| id | UUID | PK, DEFAULT gen_random_uuid() | Mã định danh chương học. |
-| course_id | UUID | FK -> courses(id), NOT NULL | Khóa học chứa chương này. |
-| title | VARCHAR(255) | NOT NULL | Tên chương/phần học. |
-| description | TEXT | NULL | Mô tả ngắn về chương học. |
-| position | INT | NOT NULL, DEFAULT 0 | Thứ tự hiển thị trong khóa học. |
-| is_published | BOOLEAN | NOT NULL, DEFAULT TRUE | Chương học có được hiển thị hay không. |
-| created_at | TIMESTAMP | NOT NULL, DEFAULT CURRENT_TIMESTAMP | Thời điểm tạo chương học. |
-| updated_at | TIMESTAMP | NOT NULL, DEFAULT CURRENT_TIMESTAMP | Thời điểm cập nhật chương học. |
+| Cột | Kiểu | Ghi chú / Ràng buộc |
+|:---|:---|:---|
+| `id` | CHAR(36) | PRIMARY KEY |
+| `parent_id` | CHAR(36) | FOREIGN KEY -> `categories(id)`, NULL |
+| `name` | VARCHAR(120) | NOT NULL |
+| `slug` | VARCHAR(160) | UNIQUE, NOT NULL |
+| `description` | TEXT | NULL |
+| `is_active` | BOOLEAN | DEFAULT true, NOT NULL |
+| `created_at` | DATETIME(3) | DEFAULT CURRENT_TIMESTAMP(3) |
+| `updated_at` | DATETIME(3) | DEFAULT CURRENT_TIMESTAMP(3) |
+| `deleted_at` | DATETIME(3) | NULL |
 
----
+#### `courses` (Khóa học)
 
-### 3.2.4. Table: `lessons`
+| Cột | Kiểu | Ghi chú / Ràng buộc |
+|:---|:---|:---|
+| `id` | CHAR(36) | PRIMARY KEY |
+| `category_id` | CHAR(36) | FOREIGN KEY -> `categories(id)`, NULL |
+| `created_by` | CHAR(36) | FOREIGN KEY -> `users(id)`, NULL |
+| `title` | VARCHAR(255) | NOT NULL |
+| `slug` | VARCHAR(255) | UNIQUE, NOT NULL |
+| `description` | TEXT | NULL |
+| `thumbnail_url` | VARCHAR(500) | NULL |
+| `level` | VARCHAR(30) | CHECK IN (`beginner`, `intermediate`, `advanced`) |
+| `is_paid` | BOOLEAN | DEFAULT false, NOT NULL |
+| `price` | DECIMAL(15,2) | DEFAULT 0, NOT NULL |
+| `currency` | VARCHAR(10) | DEFAULT `VND`, NOT NULL |
+| `status` | VARCHAR(20) | NOT NULL, CHECK IN (`draft`, `active`, `inactive`, `archived`) |
+| `published_at` | DATETIME(3) | NULL |
+| `created_at` | DATETIME(3) | DEFAULT CURRENT_TIMESTAMP(3) |
+| `updated_at` | DATETIME(3) | DEFAULT CURRENT_TIMESTAMP(3) |
+| `deleted_at` | DATETIME(3) | NULL |
 
-Lưu thông tin bài học thuộc một chương và khóa học.
+#### `course_sections` (Section của khóa học)
 
-| Field | Data Type | Constraints | Description |
-|---|---|---|---|
-| id | UUID | PK, DEFAULT gen_random_uuid() | Mã định danh bài học. |
-| course_id | UUID | FK -> courses(id), NOT NULL | Khóa học chứa bài học. |
-| section_id | UUID | FK -> course_sections(id), NOT NULL | Chương chứa bài học. |
-| title | VARCHAR(255) | NOT NULL | Tên bài học. |
-| lesson_type | VARCHAR(30) | NOT NULL, DEFAULT 'video' | Loại bài học: `video`, `text`, `quiz`, `project`, `file`. |
-| content | TEXT | NULL | Nội dung dạng text/HTML/Markdown của bài học. |
-| video_url | TEXT | NULL | Đường dẫn video bài học. |
-| file_url | TEXT | NULL | Tài liệu đính kèm của bài học. |
-| duration_minutes | INT | NOT NULL, DEFAULT 0 | Thời lượng bài học tính theo phút. |
-| position | INT | NOT NULL, DEFAULT 0 | Thứ tự bài học trong chương. |
-| is_free_preview | BOOLEAN | NOT NULL, DEFAULT FALSE | Cho phép xem thử miễn phí hay không. |
-| is_published | BOOLEAN | NOT NULL, DEFAULT TRUE | Trạng thái hiển thị của bài học. |
-| created_at | TIMESTAMP | NOT NULL, DEFAULT CURRENT_TIMESTAMP | Thời điểm tạo bài học. |
-| updated_at | TIMESTAMP | NOT NULL, DEFAULT CURRENT_TIMESTAMP | Thời điểm cập nhật bài học. |
+| Cột | Kiểu | Ghi chú / Ràng buộc |
+|:---|:---|:---|
+| `id` | CHAR(36) | PRIMARY KEY |
+| `course_id` | CHAR(36) | FOREIGN KEY -> `courses(id)`, NOT NULL |
+| `title` | VARCHAR(255) | NOT NULL |
+| `description` | TEXT | NULL |
+| `order_index` | INT | NOT NULL |
+| `is_active` | BOOLEAN | DEFAULT true, NOT NULL |
+| `created_at` | DATETIME(3) | DEFAULT CURRENT_TIMESTAMP(3) |
+| `updated_at` | DATETIME(3) | DEFAULT CURRENT_TIMESTAMP(3) |
 
----
+#### `lessons` (Bài học)
 
-## 3.3. Module Tiến độ & Học tập (Progress & Learning)
-
-### 3.3.1. Table: `enrollments`
-
-Lưu thông tin học viên đăng ký hoặc được cấp quyền học một khóa học.
-
-| Field | Data Type | Constraints | Description |
-|---|---|---|---|
-| id | UUID | PK, DEFAULT gen_random_uuid() | Mã định danh lượt đăng ký khóa học. |
-| user_id | UUID | FK -> users(id), NOT NULL | Học viên đăng ký khóa học. |
-| course_id | UUID | FK -> courses(id), NOT NULL | Khóa học được đăng ký. |
-| order_id | UUID | FK -> orders(id), NULL | Đơn hàng tạo ra quyền học, NULL nếu được admin cấp thủ công. |
-| status | VARCHAR(30) | NOT NULL, DEFAULT 'active' | Trạng thái: `active`, `completed`, `cancelled`, `expired`. |
-| enrolled_at | TIMESTAMP | NOT NULL, DEFAULT CURRENT_TIMESTAMP | Thời điểm bắt đầu học. |
-| completed_at | TIMESTAMP | NULL | Thời điểm hoàn thành khóa học. |
-| expires_at | TIMESTAMP | NULL | Thời điểm hết hạn quyền truy cập, nếu có. |
-| created_at | TIMESTAMP | NOT NULL, DEFAULT CURRENT_TIMESTAMP | Thời điểm tạo bản ghi. |
-| updated_at | TIMESTAMP | NOT NULL, DEFAULT CURRENT_TIMESTAMP | Thời điểm cập nhật bản ghi. |
-
-**Ràng buộc đề xuất:** `UNIQUE(user_id, course_id)` để tránh một học viên đăng ký trùng một khóa học.
-
----
-
-### 3.3.2. Table: `lesson_progress`
-
-Theo dõi tiến độ học của từng học viên trên từng bài học.
-
-| Field | Data Type | Constraints | Description |
-|---|---|---|---|
-| id | UUID | PK, DEFAULT gen_random_uuid() | Mã định danh tiến độ bài học. |
-| enrollment_id | UUID | FK -> enrollments(id), NOT NULL | Lượt đăng ký khóa học tương ứng. |
-| user_id | UUID | FK -> users(id), NOT NULL | Học viên đang học bài này. |
-| lesson_id | UUID | FK -> lessons(id), NOT NULL | Bài học được theo dõi tiến độ. |
-| status | VARCHAR(30) | NOT NULL, DEFAULT 'not_started' | Trạng thái: `not_started`, `in_progress`, `completed`. |
-| progress_percent | DECIMAL(5,2) | NOT NULL, DEFAULT 0 | Phần trăm hoàn thành bài học. |
-| watched_seconds | INT | NOT NULL, DEFAULT 0 | Số giây video đã xem, nếu là bài video. |
-| last_accessed_at | TIMESTAMP | NULL | Lần truy cập bài học gần nhất. |
-| completed_at | TIMESTAMP | NULL | Thời điểm hoàn thành bài học. |
-| created_at | TIMESTAMP | NOT NULL, DEFAULT CURRENT_TIMESTAMP | Thời điểm tạo tiến độ. |
-| updated_at | TIMESTAMP | NOT NULL, DEFAULT CURRENT_TIMESTAMP | Thời điểm cập nhật tiến độ. |
-
-**Ràng buộc đề xuất:** `UNIQUE(enrollment_id, lesson_id)` để mỗi lượt đăng ký chỉ có một tiến độ cho mỗi bài học.
+| Cột | Kiểu | Ghi chú / Ràng buộc |
+|:---|:---|:---|
+| `id` | CHAR(36) | PRIMARY KEY |
+| `section_id` | CHAR(36) | FOREIGN KEY -> `course_sections(id)`, NOT NULL |
+| `title` | VARCHAR(255) | NOT NULL |
+| `content` | LONGTEXT | NULL; full content chỉ trả nếu có access |
+| `video_url` | VARCHAR(500) | NULL |
+| `duration_seconds` | INT | DEFAULT 0 |
+| `order_index` | INT | NOT NULL |
+| `is_preview` | BOOLEAN | DEFAULT false, NOT NULL |
+| `is_active` | BOOLEAN | DEFAULT true, NOT NULL |
+| `created_at` | DATETIME(3) | DEFAULT CURRENT_TIMESTAMP(3) |
+| `updated_at` | DATETIME(3) | DEFAULT CURRENT_TIMESTAMP(3) |
+| `deleted_at` | DATETIME(3) | NULL |
 
 ---
 
-### 3.3.3. Table: `course_progress`
+### 3.3 Nhóm Payment, Order & Enrollment
 
-Tổng hợp tiến độ học tập của học viên trong toàn bộ khóa học.
+#### `orders` (Đơn mua khóa học)
 
-| Field | Data Type | Constraints | Description |
-|---|---|---|---|
-| id | UUID | PK, DEFAULT gen_random_uuid() | Mã định danh tiến độ khóa học. |
-| enrollment_id | UUID | FK -> enrollments(id), NOT NULL, UNIQUE | Lượt đăng ký tương ứng. |
-| user_id | UUID | FK -> users(id), NOT NULL | Học viên. |
-| course_id | UUID | FK -> courses(id), NOT NULL | Khóa học. |
-| completed_lessons_count | INT | NOT NULL, DEFAULT 0 | Số bài học đã hoàn thành. |
-| total_lessons_count | INT | NOT NULL, DEFAULT 0 | Tổng số bài học trong khóa tại thời điểm tính tiến độ. |
-| progress_percent | DECIMAL(5,2) | NOT NULL, DEFAULT 0 | Phần trăm hoàn thành khóa học. |
-| last_lesson_id | UUID | FK -> lessons(id), NULL | Bài học gần nhất học viên truy cập. |
-| status | VARCHAR(30) | NOT NULL, DEFAULT 'in_progress' | Trạng thái: `in_progress`, `completed`. |
-| completed_at | TIMESTAMP | NULL | Thời điểm hoàn thành khóa học. |
-| updated_at | TIMESTAMP | NOT NULL, DEFAULT CURRENT_TIMESTAMP | Thời điểm cập nhật tiến độ. |
+| Cột | Kiểu | Ghi chú / Ràng buộc |
+|:---|:---|:---|
+| `id` | CHAR(36) | PRIMARY KEY |
+| `order_number` | VARCHAR(60) | UNIQUE, NOT NULL |
+| `user_id` | CHAR(36) | FOREIGN KEY -> `users(id)`, NOT NULL |
+| `course_id` | CHAR(36) | FOREIGN KEY -> `courses(id)`, NOT NULL |
+| `amount` | DECIMAL(15,2) | NOT NULL, snapshot từ `courses.price` |
+| `currency` | VARCHAR(10) | DEFAULT `VND`, NOT NULL |
+| `status` | VARCHAR(20) | NOT NULL, CHECK IN (`pending`, `paid`, `failed`, `cancelled`, `expired`) |
+| `created_at` | DATETIME(3) | DEFAULT CURRENT_TIMESTAMP(3) |
+| `updated_at` | DATETIME(3) | DEFAULT CURRENT_TIMESTAMP(3) |
+| `expires_at` | DATETIME(3) | NULL |
 
----
+#### `payments` (Thanh toán)
 
-## 3.4. Module Kiểm tra & Dự án (Assessment)
+| Cột | Kiểu | Ghi chú / Ràng buộc |
+|:---|:---|:---|
+| `id` | CHAR(36) | PRIMARY KEY |
+| `order_id` | CHAR(36) | FOREIGN KEY -> `orders(id)`, NULL trong MVP nếu chưa tạo order riêng |
+| `user_id` | CHAR(36) | FOREIGN KEY -> `users(id)`, NOT NULL |
+| `course_id` | CHAR(36) | FOREIGN KEY -> `courses(id)`, NOT NULL |
+| `payment_ref` | VARCHAR(80) | UNIQUE, NOT NULL; gửi sang VNPAY dưới dạng `vnp_TxnRef` |
+| `provider` | VARCHAR(30) | DEFAULT `VNPAY`, NOT NULL |
+| `amount` | DECIMAL(15,2) | NOT NULL, snapshot từ course price |
+| `currency` | VARCHAR(10) | DEFAULT `VND`, NOT NULL |
+| `status` | VARCHAR(20) | NOT NULL, CHECK IN (`PENDING`, `EXPIRED`, `SUCCESS`, `FAILED`, `CANCELLED`) |
+| `checkout_url` | TEXT | Full VNPAY signed URL để reuse khi còn active `PENDING` |
+| `transaction_id` | VARCHAR(100) | NULL, gateway transaction id sau callback |
+| `provider_response_code` | VARCHAR(50) | NULL |
+| `provider_payload` | JSON | NULL, sanitized payload; không chứa secret |
+| `paid_at` | DATETIME(3) | NULL |
+| `expires_at` | DATETIME(3) | NOT NULL |
+| `created_at` | DATETIME(3) | DEFAULT CURRENT_TIMESTAMP(3) |
+| `updated_at` | DATETIME(3) | DEFAULT CURRENT_TIMESTAMP(3) |
 
-### 3.4.1. Table: `quizzes`
+#### `payment_events` (Sự kiện payment/audit payment)
 
-Lưu thông tin bài kiểm tra, có thể gắn với khóa học hoặc một bài học cụ thể.
+| Cột | Kiểu | Ghi chú / Ràng buộc |
+|:---|:---|:---|
+| `id` | CHAR(36) | PRIMARY KEY |
+| `payment_id` | CHAR(36) | FOREIGN KEY -> `payments(id)`, NOT NULL |
+| `event_type` | VARCHAR(50) | NOT NULL. Ví dụ: `CREATED`, `REUSED`, `EXPIRED`, `SUCCESS`, `FAILED` |
+| `actor_user_id` | CHAR(36) | FOREIGN KEY -> `users(id)`, NULL |
+| `metadata` | JSON | NULL; không chứa VNPAY secret/JWT |
+| `created_at` | DATETIME(3) | DEFAULT CURRENT_TIMESTAMP(3) |
 
-| Field | Data Type | Constraints | Description |
-|---|---|---|---|
-| id | UUID | PK, DEFAULT gen_random_uuid() | Mã định danh bài kiểm tra. |
-| course_id | UUID | FK -> courses(id), NOT NULL | Khóa học chứa quiz. |
-| lesson_id | UUID | FK -> lessons(id), NULL | Bài học chứa quiz, NULL nếu quiz thuộc cấp khóa học. |
-| title | VARCHAR(255) | NOT NULL | Tên bài kiểm tra. |
-| description | TEXT | NULL | Mô tả bài kiểm tra. |
-| questions | JSONB | NOT NULL | Danh sách câu hỏi, đáp án và cấu hình điểm. |
-| passing_score | DECIMAL(5,2) | NOT NULL, DEFAULT 0 | Điểm tối thiểu để đạt. |
-| time_limit_minutes | INT | NULL | Thời gian làm bài tính theo phút. |
-| max_attempts | INT | NOT NULL, DEFAULT 1 | Số lần làm bài tối đa. |
-| is_published | BOOLEAN | NOT NULL, DEFAULT FALSE | Trạng thái hiển thị quiz. |
-| created_at | TIMESTAMP | NOT NULL, DEFAULT CURRENT_TIMESTAMP | Thời điểm tạo quiz. |
-| updated_at | TIMESTAMP | NOT NULL, DEFAULT CURRENT_TIMESTAMP | Thời điểm cập nhật quiz. |
+#### `enrollments` (Ghi danh khóa học)
 
----
-
-### 3.4.2. Table: `quiz_submissions`
-
-Lưu kết quả làm bài quiz của học viên.
-
-| Field | Data Type | Constraints | Description |
-|---|---|---|---|
-| id | UUID | PK, DEFAULT gen_random_uuid() | Mã định danh bài nộp quiz. |
-| quiz_id | UUID | FK -> quizzes(id), NOT NULL | Quiz được nộp. |
-| user_id | UUID | FK -> users(id), NOT NULL | Học viên làm bài. |
-| enrollment_id | UUID | FK -> enrollments(id), NOT NULL | Lượt đăng ký khóa học liên quan. |
-| answers | JSONB | NOT NULL | Câu trả lời của học viên. |
-| score | DECIMAL(5,2) | NOT NULL, DEFAULT 0 | Điểm đạt được. |
-| passed | BOOLEAN | NOT NULL, DEFAULT FALSE | Kết quả đạt hay không đạt. |
-| attempt_no | INT | NOT NULL, DEFAULT 1 | Lần làm bài thứ mấy. |
-| started_at | TIMESTAMP | NULL | Thời điểm bắt đầu làm bài. |
-| submitted_at | TIMESTAMP | NOT NULL, DEFAULT CURRENT_TIMESTAMP | Thời điểm nộp bài. |
-| time_spent_seconds | INT | NULL | Tổng thời gian làm bài tính bằng giây. |
-
-**Ràng buộc đề xuất:** `UNIQUE(quiz_id, user_id, attempt_no)` để tránh trùng số lần làm bài.
-
----
-
-### 3.4.3. Table: `project_submissions`
-
-Lưu bài nộp dự án/bài tập thực hành của học viên.
-
-| Field | Data Type | Constraints | Description |
-|---|---|---|---|
-| id | UUID | PK, DEFAULT gen_random_uuid() | Mã định danh bài nộp dự án. |
-| course_id | UUID | FK -> courses(id), NOT NULL | Khóa học chứa dự án. |
-| lesson_id | UUID | FK -> lessons(id), NULL | Bài học giao dự án, nếu có. |
-| enrollment_id | UUID | FK -> enrollments(id), NOT NULL | Lượt đăng ký khóa học của học viên. |
-| user_id | UUID | FK -> users(id), NOT NULL | Học viên nộp dự án. |
-| title | VARCHAR(255) | NOT NULL | Tiêu đề bài nộp. |
-| description | TEXT | NULL | Mô tả bài nộp. |
-| submission_url | TEXT | NULL | Link GitHub, Google Drive, demo hoặc tài nguyên bên ngoài. |
-| file_url | TEXT | NULL | File đính kèm bài nộp. |
-| status | VARCHAR(30) | NOT NULL, DEFAULT 'submitted' | Trạng thái: `submitted`, `reviewing`, `approved`, `rejected`, `revision_requested`. |
-| submitted_at | TIMESTAMP | NOT NULL, DEFAULT CURRENT_TIMESTAMP | Thời điểm nộp bài. |
-| reviewed_at | TIMESTAMP | NULL | Thời điểm được đánh giá gần nhất. |
-| created_at | TIMESTAMP | NOT NULL, DEFAULT CURRENT_TIMESTAMP | Thời điểm tạo bản ghi. |
-| updated_at | TIMESTAMP | NOT NULL, DEFAULT CURRENT_TIMESTAMP | Thời điểm cập nhật bản ghi. |
+| Cột | Kiểu | Ghi chú / Ràng buộc |
+|:---|:---|:---|
+| `id` | CHAR(36) | PRIMARY KEY |
+| `user_id` | CHAR(36) | FOREIGN KEY -> `users(id)`, NOT NULL |
+| `course_id` | CHAR(36) | FOREIGN KEY -> `courses(id)`, NOT NULL |
+| `payment_id` | CHAR(36) | FOREIGN KEY -> `payments(id)`, NULL với khóa free |
+| `source` | VARCHAR(20) | CHECK IN (`free`, `payment`, `admin`) |
+| `status` | VARCHAR(20) | NOT NULL, CHECK IN (`active`, `completed`, `cancelled`, `refunded`) |
+| `enrolled_at` | DATETIME(3) | DEFAULT CURRENT_TIMESTAMP(3) |
+| `completed_at` | DATETIME(3) | NULL |
+| `created_at` | DATETIME(3) | DEFAULT CURRENT_TIMESTAMP(3) |
+| `updated_at` | DATETIME(3) | DEFAULT CURRENT_TIMESTAMP(3) |
+| *Ràng buộc* | | UNIQUE(`user_id`, `course_id`) |
 
 ---
 
-## 3.5. Module Tương tác & Phản hồi (Interaction & Feedback)
+### 3.4 Nhóm Learning Progress
 
-### 3.5.1. Table: `project_reviews`
+#### `lesson_progress` (Tiến độ bài học)
 
-Lưu đánh giá của giảng viên/mentor đối với bài nộp dự án.
+| Cột | Kiểu | Ghi chú / Ràng buộc |
+|:---|:---|:---|
+| `id` | CHAR(36) | PRIMARY KEY |
+| `user_id` | CHAR(36) | FOREIGN KEY -> `users(id)`, NOT NULL |
+| `lesson_id` | CHAR(36) | FOREIGN KEY -> `lessons(id)`, NOT NULL |
+| `status` | VARCHAR(20) | NOT NULL, CHECK IN (`not_started`, `in_progress`, `completed`) |
+| `progress_percent` | DECIMAL(5,2) | DEFAULT 0 |
+| `last_position_seconds` | INT | DEFAULT 0 |
+| `completed_at` | DATETIME(3) | NULL |
+| `created_at` | DATETIME(3) | DEFAULT CURRENT_TIMESTAMP(3) |
+| `updated_at` | DATETIME(3) | DEFAULT CURRENT_TIMESTAMP(3) |
+| *Ràng buộc* | | UNIQUE(`user_id`, `lesson_id`) |
 
-| Field | Data Type | Constraints | Description |
-|---|---|---|---|
-| id | UUID | PK, DEFAULT gen_random_uuid() | Mã định danh đánh giá dự án. |
-| project_submission_id | UUID | FK -> project_submissions(id), NOT NULL | Bài nộp được đánh giá. |
-| reviewer_id | UUID | FK -> users(id), NOT NULL | Người đánh giá, thường là instructor hoặc mentor. |
-| score | DECIMAL(5,2) | NULL | Điểm đánh giá dự án. |
-| comment | TEXT | NULL | Nhận xét tổng quan của người đánh giá. |
-| rubric | JSONB | NULL | Chi tiết đánh giá theo rubric/tiêu chí. |
-| result_status | VARCHAR(30) | NOT NULL, DEFAULT 'reviewed' | Kết quả: `reviewed`, `approved`, `rejected`, `revision_requested`. |
-| created_at | TIMESTAMP | NOT NULL, DEFAULT CURRENT_TIMESTAMP | Thời điểm tạo đánh giá. |
-| updated_at | TIMESTAMP | NOT NULL, DEFAULT CURRENT_TIMESTAMP | Thời điểm cập nhật đánh giá. |
+#### `course_progress` (Tiến độ khóa học)
 
----
-
-### 3.5.2. Table: `mentor_feedbacks`
-
-Lưu phản hồi, góp ý hoặc nhận xét của mentor/giảng viên dành cho học viên.
-
-| Field | Data Type | Constraints | Description |
-|---|---|---|---|
-| id | UUID | PK, DEFAULT gen_random_uuid() | Mã định danh feedback. |
-| course_id | UUID | FK -> courses(id), NOT NULL | Khóa học liên quan đến feedback. |
-| enrollment_id | UUID | FK -> enrollments(id), NULL | Lượt học liên quan, nếu có. |
-| student_id | UUID | FK -> users(id), NOT NULL | Học viên nhận feedback. |
-| mentor_id | UUID | FK -> users(id), NOT NULL | Mentor/giảng viên gửi feedback. |
-| lesson_id | UUID | FK -> lessons(id), NULL | Bài học liên quan, nếu feedback theo bài. |
-| feedback_type | VARCHAR(50) | NOT NULL, DEFAULT 'general' | Loại feedback: `general`, `lesson`, `project`, `quiz`, `progress`. |
-| message | TEXT | NOT NULL | Nội dung phản hồi. |
-| rating | INT | NULL | Đánh giá định lượng, ví dụ 1-5. |
-| created_at | TIMESTAMP | NOT NULL, DEFAULT CURRENT_TIMESTAMP | Thời điểm tạo feedback. |
-| updated_at | TIMESTAMP | NOT NULL, DEFAULT CURRENT_TIMESTAMP | Thời điểm cập nhật feedback. |
+| Cột | Kiểu | Ghi chú / Ràng buộc |
+|:---|:---|:---|
+| `id` | CHAR(36) | PRIMARY KEY |
+| `user_id` | CHAR(36) | FOREIGN KEY -> `users(id)`, NOT NULL |
+| `course_id` | CHAR(36) | FOREIGN KEY -> `courses(id)`, NOT NULL |
+| `completed_lessons` | INT | DEFAULT 0 |
+| `total_lessons` | INT | DEFAULT 0 |
+| `progress_percent` | DECIMAL(5,2) | DEFAULT 0 |
+| `status` | VARCHAR(20) | CHECK IN (`not_started`, `in_progress`, `completed`) |
+| `last_lesson_id` | CHAR(36) | FOREIGN KEY -> `lessons(id)`, NULL |
+| `completed_at` | DATETIME(3) | NULL |
+| `created_at` | DATETIME(3) | DEFAULT CURRENT_TIMESTAMP(3) |
+| `updated_at` | DATETIME(3) | DEFAULT CURRENT_TIMESTAMP(3) |
+| *Ràng buộc* | | UNIQUE(`user_id`, `course_id`) |
 
 ---
 
-## 3.6. Module Thanh toán & Đơn hàng (Commerce)
+### 3.5 Nhóm Quiz
 
-### 3.6.1. Table: `orders`
+#### `quizzes` (Quiz)
 
-Lưu thông tin đơn hàng mua khóa học.
+| Cột | Kiểu | Ghi chú / Ràng buộc |
+|:---|:---|:---|
+| `id` | CHAR(36) | PRIMARY KEY |
+| `course_id` | CHAR(36) | FOREIGN KEY -> `courses(id)`, NOT NULL |
+| `lesson_id` | CHAR(36) | FOREIGN KEY -> `lessons(id)`, NULL |
+| `title` | VARCHAR(255) | NOT NULL |
+| `description` | TEXT | NULL |
+| `time_limit_minutes` | INT | NULL |
+| `passing_score` | DECIMAL(5,2) | DEFAULT 0 |
+| `status` | VARCHAR(20) | CHECK IN (`draft`, `active`, `inactive`) |
+| `created_at` | DATETIME(3) | DEFAULT CURRENT_TIMESTAMP(3) |
+| `updated_at` | DATETIME(3) | DEFAULT CURRENT_TIMESTAMP(3) |
 
-| Field | Data Type | Constraints | Description |
-|---|---|---|---|
-| id | UUID | PK, DEFAULT gen_random_uuid() | Mã định danh đơn hàng. |
-| user_id | UUID | FK -> users(id), NOT NULL | Học viên tạo đơn hàng. |
-| course_id | UUID | FK -> courses(id), NOT NULL | Khóa học được mua trong đơn hàng. |
-| order_code | VARCHAR(50) | NOT NULL, UNIQUE | Mã đơn hàng hiển thị cho người dùng. |
-| original_amount | DECIMAL(12,2) | NOT NULL, DEFAULT 0 | Giá gốc tại thời điểm đặt hàng. |
-| discount_amount | DECIMAL(12,2) | NOT NULL, DEFAULT 0 | Số tiền giảm giá. |
-| final_amount | DECIMAL(12,2) | NOT NULL, DEFAULT 0 | Số tiền cuối cùng cần thanh toán. |
-| currency | VARCHAR(10) | NOT NULL, DEFAULT 'VND' | Đơn vị tiền tệ. |
-| payment_method | VARCHAR(50) | NULL | Phương thức thanh toán dự kiến: `momo`, `vnpay`, `stripe`, `bank_transfer`. |
-| status | VARCHAR(30) | NOT NULL, DEFAULT 'pending' | Trạng thái: `pending`, `paid`, `cancelled`, `refunded`, `failed`. |
-| paid_at | TIMESTAMP | NULL | Thời điểm thanh toán thành công. |
-| cancelled_at | TIMESTAMP | NULL | Thời điểm hủy đơn hàng. |
-| created_at | TIMESTAMP | NOT NULL, DEFAULT CURRENT_TIMESTAMP | Thời điểm tạo đơn hàng. |
-| updated_at | TIMESTAMP | NOT NULL, DEFAULT CURRENT_TIMESTAMP | Thời điểm cập nhật đơn hàng. |
+#### `quiz_questions` (Câu hỏi quiz)
 
----
+| Cột | Kiểu | Ghi chú / Ràng buộc |
+|:---|:---|:---|
+| `id` | CHAR(36) | PRIMARY KEY |
+| `quiz_id` | CHAR(36) | FOREIGN KEY -> `quizzes(id)`, NOT NULL |
+| `question_text` | TEXT | NOT NULL |
+| `question_type` | VARCHAR(30) | CHECK IN (`single_choice`, `multiple_choice`, `true_false`) |
+| `options` | JSON | NOT NULL |
+| `correct_answer` | JSON | NOT NULL; không trả cho learner trước khi submit |
+| `explanation` | TEXT | NULL |
+| `points` | DECIMAL(6,2) | DEFAULT 1 |
+| `order_index` | INT | NOT NULL |
+| `created_at` | DATETIME(3) | DEFAULT CURRENT_TIMESTAMP(3) |
 
-### 3.6.2. Table: `payments`
+#### `quiz_submissions` (Bài làm quiz)
 
-Lưu thông tin giao dịch thanh toán từ cổng thanh toán hoặc hệ thống nội bộ.
-
-| Field | Data Type | Constraints | Description |
-|---|---|---|---|
-| id | UUID | PK, DEFAULT gen_random_uuid() | Mã định danh giao dịch thanh toán. |
-| order_id | UUID | FK -> orders(id), NOT NULL | Đơn hàng được thanh toán. |
-| user_id | UUID | FK -> users(id), NOT NULL | Người thực hiện thanh toán. |
-| provider | VARCHAR(50) | NOT NULL | Nhà cung cấp thanh toán: `momo`, `vnpay`, `stripe`, `paypal`, `manual`. |
-| transaction_code | VARCHAR(100) | NULL, UNIQUE | Mã giao dịch từ cổng thanh toán. |
-| amount | DECIMAL(12,2) | NOT NULL | Số tiền thanh toán. |
-| currency | VARCHAR(10) | NOT NULL, DEFAULT 'VND' | Đơn vị tiền tệ. |
-| status | VARCHAR(30) | NOT NULL, DEFAULT 'pending' | Trạng thái: `pending`, `success`, `failed`, `refunded`. |
-| paid_at | TIMESTAMP | NULL | Thời điểm thanh toán thành công. |
-| raw_response | JSONB | NULL | Dữ liệu phản hồi gốc từ cổng thanh toán. |
-| created_at | TIMESTAMP | NOT NULL, DEFAULT CURRENT_TIMESTAMP | Thời điểm tạo giao dịch. |
-| updated_at | TIMESTAMP | NOT NULL, DEFAULT CURRENT_TIMESTAMP | Thời điểm cập nhật giao dịch. |
-
----
-
-## 3.7. Module Hệ thống (System)
-
-### 3.7.1. Table: `reports`
-
-Lưu báo cáo vi phạm, lỗi nội dung hoặc khiếu nại từ người dùng.
-
-| Field | Data Type | Constraints | Description |
-|---|---|---|---|
-| id | UUID | PK, DEFAULT gen_random_uuid() | Mã định danh báo cáo. |
-| reporter_id | UUID | FK -> users(id), NOT NULL | Người gửi báo cáo. |
-| target_type | VARCHAR(50) | NOT NULL | Loại đối tượng bị báo cáo: `course`, `lesson`, `user`, `project_submission`, `comment`. |
-| target_id | UUID | NOT NULL | ID của đối tượng bị báo cáo. |
-| reason | VARCHAR(255) | NOT NULL | Lý do báo cáo. |
-| description | TEXT | NULL | Mô tả chi tiết nội dung báo cáo. |
-| status | VARCHAR(30) | NOT NULL, DEFAULT 'pending' | Trạng thái: `pending`, `reviewing`, `resolved`, `rejected`. |
-| handled_by | UUID | FK -> users(id), NULL | Admin/người xử lý báo cáo. |
-| handled_at | TIMESTAMP | NULL | Thời điểm xử lý báo cáo. |
-| created_at | TIMESTAMP | NOT NULL, DEFAULT CURRENT_TIMESTAMP | Thời điểm tạo báo cáo. |
-| updated_at | TIMESTAMP | NOT NULL, DEFAULT CURRENT_TIMESTAMP | Thời điểm cập nhật báo cáo. |
-
-> Ghi chú: `target_id` là quan hệ đa hình nên không thể tạo FK trực tiếp đến nhiều bảng khác nhau trong hầu hết RDBMS. Cần kiểm tra logic ở tầng application hoặc dùng trigger nếu muốn kiểm soát chặt.
+| Cột | Kiểu | Ghi chú / Ràng buộc |
+|:---|:---|:---|
+| `id` | CHAR(36) | PRIMARY KEY |
+| `quiz_id` | CHAR(36) | FOREIGN KEY -> `quizzes(id)`, NOT NULL |
+| `user_id` | CHAR(36) | FOREIGN KEY -> `users(id)`, NOT NULL |
+| `answers` | JSON | NOT NULL |
+| `score` | DECIMAL(6,2) | DEFAULT 0 |
+| `max_score` | DECIMAL(6,2) | DEFAULT 0 |
+| `passed` | BOOLEAN | DEFAULT false |
+| `started_at` | DATETIME(3) | NULL |
+| `submitted_at` | DATETIME(3) | DEFAULT CURRENT_TIMESTAMP(3) |
+| `created_at` | DATETIME(3) | DEFAULT CURRENT_TIMESTAMP(3) |
 
 ---
 
-### 3.7.2. Table: `notifications`
+### 3.6 Nhóm Final Project & Mentor Review
 
-Lưu thông báo gửi đến người dùng.
+#### `project_submissions` (Bài nộp final project)
 
-| Field | Data Type | Constraints | Description |
-|---|---|---|---|
-| id | UUID | PK, DEFAULT gen_random_uuid() | Mã định danh thông báo. |
-| user_id | UUID | FK -> users(id), NOT NULL | Người nhận thông báo. |
-| title | VARCHAR(255) | NOT NULL | Tiêu đề thông báo. |
-| message | TEXT | NOT NULL | Nội dung thông báo. |
-| type | VARCHAR(50) | NOT NULL, DEFAULT 'system' | Loại thông báo: `system`, `course`, `payment`, `feedback`, `assessment`. |
-| payload | JSONB | NULL | Dữ liệu bổ sung, ví dụ link điều hướng hoặc metadata. |
-| is_read | BOOLEAN | NOT NULL, DEFAULT FALSE | Đánh dấu đã đọc hay chưa. |
-| read_at | TIMESTAMP | NULL | Thời điểm người dùng đọc thông báo. |
-| created_at | TIMESTAMP | NOT NULL, DEFAULT CURRENT_TIMESTAMP | Thời điểm tạo thông báo. |
+| Cột | Kiểu | Ghi chú / Ràng buộc |
+|:---|:---|:---|
+| `id` | CHAR(36) | PRIMARY KEY |
+| `user_id` | CHAR(36) | FOREIGN KEY -> `users(id)`, NOT NULL |
+| `course_id` | CHAR(36) | FOREIGN KEY -> `courses(id)`, NOT NULL |
+| `repository_url` | VARCHAR(500) | NULL, link Git repository |
+| `demo_url` | VARCHAR(500) | NULL |
+| `note` | TEXT | NULL |
+| `attempt_no` | INT | DEFAULT 1 |
+| `status` | VARCHAR(20) | CHECK IN (`PENDING`, `REVIEWING`, `PASS`, `FAIL`, `CANCELLED`) |
+| `submitted_at` | DATETIME(3) | DEFAULT CURRENT_TIMESTAMP(3) |
+| `updated_at` | DATETIME(3) | DEFAULT CURRENT_TIMESTAMP(3) |
+| *Ràng buộc* | | UNIQUE(`user_id`, `course_id`, `attempt_no`) |
 
----
+#### `mentor_assignments` (Gán mentor vào course)
 
-## 4. Quan hệ và Khóa ngoại (Relationships & Foreign Keys)
+| Cột | Kiểu | Ghi chú / Ràng buộc |
+|:---|:---|:---|
+| `id` | CHAR(36) | PRIMARY KEY |
+| `mentor_id` | CHAR(36) | FOREIGN KEY -> `users(id)`, NOT NULL |
+| `course_id` | CHAR(36) | FOREIGN KEY -> `courses(id)`, NOT NULL |
+| `assigned_by` | CHAR(36) | FOREIGN KEY -> `users(id)`, NOT NULL |
+| `status` | VARCHAR(20) | CHECK IN (`active`, `inactive`) |
+| `assigned_at` | DATETIME(3) | DEFAULT CURRENT_TIMESTAMP(3) |
+| `ended_at` | DATETIME(3) | NULL |
+| *Ràng buộc* | | UNIQUE(`mentor_id`, `course_id`) |
 
-### 4.1. User & Auth
+#### `project_reviews` (Kết quả chấm final project)
 
-| Foreign Key | References | Ý nghĩa |
-|---|---|---|
-| refresh_tokens.user_id | users.id | Một người dùng có nhiều refresh token. |
-| email_verifications.user_id | users.id | Một người dùng có nhiều yêu cầu xác minh email. |
+| Cột | Kiểu | Ghi chú / Ràng buộc |
+|:---|:---|:---|
+| `id` | CHAR(36) | PRIMARY KEY |
+| `submission_id` | CHAR(36) | FOREIGN KEY -> `project_submissions(id)`, NOT NULL |
+| `mentor_id` | CHAR(36) | FOREIGN KEY -> `users(id)`, NOT NULL |
+| `result` | VARCHAR(20) | NOT NULL, CHECK IN (`PASS`, `FAIL`) |
+| `score` | DECIMAL(5,2) | NULL |
+| `feedback` | TEXT | NULL |
+| `reviewed_at` | DATETIME(3) | DEFAULT CURRENT_TIMESTAMP(3) |
+| `created_at` | DATETIME(3) | DEFAULT CURRENT_TIMESTAMP(3) |
 
-### 4.2. Courses & Content
+#### `mentor_feedbacks` (Feedback bổ sung từ mentor)
 
-| Foreign Key | References | Ý nghĩa |
-|---|---|---|
-| categories.parent_id | categories.id | Một danh mục có thể có danh mục cha. |
-| courses.category_id | categories.id | Một khóa học thuộc một danh mục. |
-| courses.instructor_id | users.id | Một giảng viên có thể tạo nhiều khóa học. |
-| course_sections.course_id | courses.id | Một khóa học có nhiều chương/phần. |
-| lessons.course_id | courses.id | Một khóa học có nhiều bài học. |
-| lessons.section_id | course_sections.id | Một chương/phần có nhiều bài học. |
-
-### 4.3. Progress & Learning
-
-| Foreign Key | References | Ý nghĩa |
-|---|---|---|
-| enrollments.user_id | users.id | Một học viên có nhiều lượt đăng ký khóa học. |
-| enrollments.course_id | courses.id | Một khóa học có nhiều học viên đăng ký. |
-| enrollments.order_id | orders.id | Một lượt đăng ký có thể phát sinh từ một đơn hàng. |
-| lesson_progress.enrollment_id | enrollments.id | Tiến độ bài học thuộc một lượt đăng ký. |
-| lesson_progress.user_id | users.id | Tiến độ bài học thuộc về một học viên. |
-| lesson_progress.lesson_id | lessons.id | Tiến độ gắn với một bài học. |
-| course_progress.enrollment_id | enrollments.id | Mỗi lượt đăng ký có một bản tổng hợp tiến độ khóa học. |
-| course_progress.user_id | users.id | Tiến độ khóa học thuộc về một học viên. |
-| course_progress.course_id | courses.id | Tiến độ gắn với một khóa học. |
-| course_progress.last_lesson_id | lessons.id | Bài học gần nhất học viên truy cập. |
-
-### 4.4. Assessment
-
-| Foreign Key | References | Ý nghĩa |
-|---|---|---|
-| quizzes.course_id | courses.id | Một khóa học có nhiều quiz. |
-| quizzes.lesson_id | lessons.id | Một bài học có thể có quiz. |
-| quiz_submissions.quiz_id | quizzes.id | Một quiz có nhiều bài nộp. |
-| quiz_submissions.user_id | users.id | Một học viên có thể nộp nhiều quiz. |
-| quiz_submissions.enrollment_id | enrollments.id | Bài nộp quiz thuộc một lượt đăng ký. |
-| project_submissions.course_id | courses.id | Một khóa học có nhiều bài nộp dự án. |
-| project_submissions.lesson_id | lessons.id | Một bài học có thể yêu cầu nộp dự án. |
-| project_submissions.enrollment_id | enrollments.id | Bài nộp dự án thuộc một lượt đăng ký. |
-| project_submissions.user_id | users.id | Một học viên có nhiều bài nộp dự án. |
-
-### 4.5. Interaction & Feedback
-
-| Foreign Key | References | Ý nghĩa |
-|---|---|---|
-| project_reviews.project_submission_id | project_submissions.id | Một bài nộp dự án có thể có nhiều lần đánh giá. |
-| project_reviews.reviewer_id | users.id | Người đánh giá là instructor/mentor/admin. |
-| mentor_feedbacks.course_id | courses.id | Feedback liên quan đến một khóa học. |
-| mentor_feedbacks.enrollment_id | enrollments.id | Feedback có thể liên quan đến một lượt học. |
-| mentor_feedbacks.student_id | users.id | Học viên nhận feedback. |
-| mentor_feedbacks.mentor_id | users.id | Mentor/giảng viên gửi feedback. |
-| mentor_feedbacks.lesson_id | lessons.id | Feedback có thể liên quan đến một bài học. |
-
-### 4.6. Commerce
-
-| Foreign Key | References | Ý nghĩa |
-|---|---|---|
-| orders.user_id | users.id | Một học viên có thể tạo nhiều đơn hàng. |
-| orders.course_id | courses.id | Một đơn hàng hiện tại tương ứng với một khóa học. |
-| payments.order_id | orders.id | Một đơn hàng có thể có nhiều giao dịch thanh toán. |
-| payments.user_id | users.id | Một học viên có thể có nhiều giao dịch thanh toán. |
-
-### 4.7. System
-
-| Foreign Key | References | Ý nghĩa |
-|---|---|---|
-| reports.reporter_id | users.id | Người gửi báo cáo. |
-| reports.handled_by | users.id | Admin/người xử lý báo cáo. |
-| notifications.user_id | users.id | Người nhận thông báo. |
+| Cột | Kiểu | Ghi chú / Ràng buộc |
+|:---|:---|:---|
+| `id` | CHAR(36) | PRIMARY KEY |
+| `review_id` | CHAR(36) | FOREIGN KEY -> `project_reviews(id)`, NOT NULL |
+| `mentor_id` | CHAR(36) | FOREIGN KEY -> `users(id)`, NOT NULL |
+| `message` | TEXT | NOT NULL |
+| `created_at` | DATETIME(3) | DEFAULT CURRENT_TIMESTAMP(3) |
 
 ---
 
-## 5. Chỉ mục (Indexes)
+### 3.7 Nhóm Notification, Audit & Report
 
-Các index dưới đây giúp tối ưu truy vấn tìm kiếm, đăng nhập, JOIN giữa các bảng, lọc danh sách và thống kê dashboard.
+#### `notifications` (Thông báo)
 
-## 5.1. User & Auth
+| Cột | Kiểu | Ghi chú / Ràng buộc |
+|:---|:---|:---|
+| `id` | CHAR(36) | PRIMARY KEY |
+| `user_id` | CHAR(36) | FOREIGN KEY -> `users(id)`, NOT NULL |
+| `type` | VARCHAR(50) | Ví dụ: `enrollment_success`, `review_result`, `mentor_assigned` |
+| `title` | VARCHAR(255) | NOT NULL |
+| `message` | TEXT | NOT NULL |
+| `priority` | VARCHAR(20) | CHECK IN (`low`, `medium`, `high`) |
+| `is_read` | BOOLEAN | DEFAULT false, NOT NULL |
+| `read_at` | DATETIME(3) | NULL |
+| `reference_type` | VARCHAR(50) | NULL |
+| `reference_id` | CHAR(36) | NULL |
+| `created_at` | DATETIME(3) | DEFAULT CURRENT_TIMESTAMP(3) |
 
-| Table | Index đề xuất | Mục đích |
-|---|---|---|
-| users | UNIQUE INDEX idx_users_email ON users(email) | Tăng tốc đăng nhập và kiểm tra email trùng. |
-| users | UNIQUE INDEX idx_users_phone ON users(phone) | Tìm người dùng theo số điện thoại. |
-| users | INDEX idx_users_role ON users(role) | Lọc người dùng theo vai trò. |
-| users | INDEX idx_users_status ON users(status) | Lọc tài khoản theo trạng thái. |
-| refresh_tokens | UNIQUE INDEX idx_refresh_tokens_token_hash ON refresh_tokens(token_hash) | Xác thực refresh token nhanh. |
-| refresh_tokens | INDEX idx_refresh_tokens_user_id ON refresh_tokens(user_id) | Lấy danh sách token theo người dùng. |
-| refresh_tokens | INDEX idx_refresh_tokens_expires_at ON refresh_tokens(expires_at) | Dọn token hết hạn. |
-| email_verifications | UNIQUE INDEX idx_email_verifications_token_hash ON email_verifications(token_hash) | Xác minh token nhanh. |
-| email_verifications | INDEX idx_email_verifications_email ON email_verifications(email) | Tìm yêu cầu xác minh theo email. |
+#### `audit_logs` (Nhật ký hệ thống)
 
-## 5.2. Courses & Content
+| Cột | Kiểu | Ghi chú / Ràng buộc |
+|:---|:---|:---|
+| `id` | CHAR(36) | PRIMARY KEY |
+| `user_id` | CHAR(36) | FOREIGN KEY -> `users(id)`, NULL nếu system event |
+| `action` | VARCHAR(80) | NOT NULL. Ví dụ: `CREATE`, `UPDATE`, `PAYMENT_CALLBACK` |
+| `table_name` | VARCHAR(80) | NOT NULL |
+| `record_id` | CHAR(36) | NULL |
+| `old_data` | JSON | NULL, sanitized |
+| `new_data` | JSON | NULL, sanitized |
+| `ip_address` | VARCHAR(64) | NULL |
+| `user_agent` | VARCHAR(500) | NULL |
+| `created_at` | DATETIME(3) | DEFAULT CURRENT_TIMESTAMP(3) |
 
-| Table | Index đề xuất | Mục đích |
-|---|---|---|
-| categories | UNIQUE INDEX idx_categories_slug ON categories(slug) | Truy cập danh mục theo slug. |
-| categories | INDEX idx_categories_parent_id ON categories(parent_id) | Truy vấn danh mục con. |
-| courses | UNIQUE INDEX idx_courses_slug ON courses(slug) | Truy cập chi tiết khóa học theo slug. |
-| courses | INDEX idx_courses_category_id ON courses(category_id) | Lọc khóa học theo danh mục. |
-| courses | INDEX idx_courses_instructor_id ON courses(instructor_id) | Lấy khóa học theo giảng viên. |
-| courses | INDEX idx_courses_status ON courses(status) | Lọc khóa học theo trạng thái xuất bản. |
-| courses | INDEX idx_courses_title ON courses(title) | Hỗ trợ tìm kiếm theo tên khóa học. |
-| course_sections | INDEX idx_course_sections_course_id ON course_sections(course_id) | Lấy danh sách chương theo khóa học. |
-| course_sections | INDEX idx_course_sections_course_position ON course_sections(course_id, position) | Sắp xếp chương theo thứ tự. |
-| lessons | INDEX idx_lessons_course_id ON lessons(course_id) | Lấy bài học theo khóa học. |
-| lessons | INDEX idx_lessons_section_id ON lessons(section_id) | Lấy bài học theo chương. |
-| lessons | INDEX idx_lessons_section_position ON lessons(section_id, position) | Sắp xếp bài học theo thứ tự. |
+#### `report_snapshots` (Bản chụp báo cáo, tùy chọn)
 
-## 5.3. Progress & Learning
+| Cột | Kiểu | Ghi chú / Ràng buộc |
+|:---|:---|:---|
+| `id` | CHAR(36) | PRIMARY KEY |
+| `report_type` | VARCHAR(50) | Ví dụ: `revenue`, `course`, `mentor`, `overview` |
+| `period_start` | DATE | NULL |
+| `period_end` | DATE | NULL |
+| `data` | JSON | NOT NULL |
+| `created_by` | CHAR(36) | FOREIGN KEY -> `users(id)`, NULL |
+| `created_at` | DATETIME(3) | DEFAULT CURRENT_TIMESTAMP(3) |
 
-| Table | Index đề xuất | Mục đích |
-|---|---|---|
-| enrollments | UNIQUE INDEX idx_enrollments_user_course ON enrollments(user_id, course_id) | Tránh học viên đăng ký trùng khóa học. |
-| enrollments | INDEX idx_enrollments_course_id ON enrollments(course_id) | Lấy danh sách học viên của khóa học. |
-| enrollments | INDEX idx_enrollments_status ON enrollments(status) | Lọc đăng ký theo trạng thái. |
-| lesson_progress | UNIQUE INDEX idx_lesson_progress_enrollment_lesson ON lesson_progress(enrollment_id, lesson_id) | Tránh trùng tiến độ bài học. |
-| lesson_progress | INDEX idx_lesson_progress_user_id ON lesson_progress(user_id) | Truy vấn tiến độ của học viên. |
-| lesson_progress | INDEX idx_lesson_progress_lesson_id ON lesson_progress(lesson_id) | Thống kê tiến độ theo bài học. |
-| course_progress | UNIQUE INDEX idx_course_progress_enrollment ON course_progress(enrollment_id) | Mỗi enrollment có một tổng tiến độ. |
-| course_progress | INDEX idx_course_progress_user_course ON course_progress(user_id, course_id) | Lấy tiến độ khóa học của học viên. |
-
-## 5.4. Assessment
-
-| Table | Index đề xuất | Mục đích |
-|---|---|---|
-| quizzes | INDEX idx_quizzes_course_id ON quizzes(course_id) | Lấy quiz theo khóa học. |
-| quizzes | INDEX idx_quizzes_lesson_id ON quizzes(lesson_id) | Lấy quiz theo bài học. |
-| quiz_submissions | INDEX idx_quiz_submissions_quiz_id ON quiz_submissions(quiz_id) | Thống kê bài nộp theo quiz. |
-| quiz_submissions | INDEX idx_quiz_submissions_user_id ON quiz_submissions(user_id) | Lấy lịch sử làm bài của học viên. |
-| quiz_submissions | INDEX idx_quiz_submissions_enrollment_id ON quiz_submissions(enrollment_id) | Lấy bài nộp theo lượt học. |
-| quiz_submissions | UNIQUE INDEX idx_quiz_submissions_attempt ON quiz_submissions(quiz_id, user_id, attempt_no) | Kiểm soát số lần làm bài. |
-| project_submissions | INDEX idx_project_submissions_course_id ON project_submissions(course_id) | Lấy bài nộp theo khóa học. |
-| project_submissions | INDEX idx_project_submissions_user_id ON project_submissions(user_id) | Lấy bài nộp theo học viên. |
-| project_submissions | INDEX idx_project_submissions_status ON project_submissions(status) | Lọc bài nộp theo trạng thái review. |
-
-## 5.5. Interaction & Feedback
-
-| Table | Index đề xuất | Mục đích |
-|---|---|---|
-| project_reviews | INDEX idx_project_reviews_submission_id ON project_reviews(project_submission_id) | Lấy đánh giá theo bài nộp. |
-| project_reviews | INDEX idx_project_reviews_reviewer_id ON project_reviews(reviewer_id) | Lấy lịch sử review của mentor/giảng viên. |
-| mentor_feedbacks | INDEX idx_mentor_feedbacks_student_id ON mentor_feedbacks(student_id) | Lấy feedback của học viên. |
-| mentor_feedbacks | INDEX idx_mentor_feedbacks_mentor_id ON mentor_feedbacks(mentor_id) | Lấy feedback do mentor gửi. |
-| mentor_feedbacks | INDEX idx_mentor_feedbacks_course_id ON mentor_feedbacks(course_id) | Lọc feedback theo khóa học. |
-| mentor_feedbacks | INDEX idx_mentor_feedbacks_enrollment_id ON mentor_feedbacks(enrollment_id) | Lọc feedback theo lượt học. |
-
-## 5.6. Commerce
-
-| Table | Index đề xuất | Mục đích |
-|---|---|---|
-| orders | UNIQUE INDEX idx_orders_order_code ON orders(order_code) | Tra cứu đơn hàng bằng mã đơn. |
-| orders | INDEX idx_orders_user_id ON orders(user_id) | Lấy lịch sử đơn hàng của học viên. |
-| orders | INDEX idx_orders_course_id ON orders(course_id) | Thống kê đơn hàng theo khóa học. |
-| orders | INDEX idx_orders_status ON orders(status) | Lọc đơn hàng theo trạng thái. |
-| payments | INDEX idx_payments_order_id ON payments(order_id) | Lấy giao dịch theo đơn hàng. |
-| payments | INDEX idx_payments_user_id ON payments(user_id) | Lấy lịch sử thanh toán của học viên. |
-| payments | UNIQUE INDEX idx_payments_transaction_code ON payments(transaction_code) | Tránh ghi nhận trùng giao dịch từ cổng thanh toán. |
-| payments | INDEX idx_payments_status ON payments(status) | Lọc giao dịch theo trạng thái. |
-
-## 5.7. System
-
-| Table | Index đề xuất | Mục đích |
-|---|---|---|
-| reports | INDEX idx_reports_reporter_id ON reports(reporter_id) | Lấy báo cáo do một người dùng gửi. |
-| reports | INDEX idx_reports_target ON reports(target_type, target_id) | Tìm báo cáo theo đối tượng bị báo cáo. |
-| reports | INDEX idx_reports_status ON reports(status) | Lọc báo cáo theo trạng thái xử lý. |
-| notifications | INDEX idx_notifications_user_id ON notifications(user_id) | Lấy thông báo của người dùng. |
-| notifications | INDEX idx_notifications_user_read ON notifications(user_id, is_read) | Lấy thông báo chưa đọc. |
-| notifications | INDEX idx_notifications_created_at ON notifications(created_at) | Sắp xếp thông báo mới nhất. |
+Ghi chú: Admin report có thể query trực tiếp từ bảng thật qua `reportService/reportRepository`; `report_snapshots` chỉ dùng khi team muốn cache hoặc lưu kết quả báo cáo theo kỳ.
 
 ---
 
-## 6. Ràng buộc nghiệp vụ quan trọng
+### 3.8 Nhóm Bảng Không Bắt Buộc Trong MVP
 
-Ngoài PK, FK và index, hệ thống nên kiểm soát thêm các quy tắc nghiệp vụ sau:
+Các bảng sau **không bắt buộc** trong MVP nhưng có thể thêm ở phase sau nếu spec riêng yêu cầu:
 
-1. `users.email` phải duy nhất và luôn được chuẩn hóa về chữ thường trước khi lưu.
-2. `courses.price`, `orders.final_amount`, `payments.amount` không được âm.
-3. `courses.discount_price` nếu có thì không nên lớn hơn `courses.price`.
-4. Một học viên không được đăng ký trùng cùng một khóa học: `UNIQUE(enrollments.user_id, enrollments.course_id)`.
-5. Một học viên chỉ được học bài nếu có `enrollments.status = 'active'`.
-6. Một học viên chỉ được nộp quiz/project nếu đã đăng ký khóa học tương ứng.
-7. `course_progress.progress_percent` và `lesson_progress.progress_percent` nên nằm trong khoảng `0` đến `100`.
-8. Khi `orders.status = 'paid'`, hệ thống nên tạo hoặc kích hoạt bản ghi `enrollments` tương ứng.
-9. Khi `payments.status = 'success'`, cần cập nhật `orders.status = 'paid'` nếu tổng tiền hợp lệ.
-10. Với bảng `reports`, do `target_id` là quan hệ đa hình, cần validate đối tượng bị báo cáo ở tầng service/application.
+- `certificates`: lưu certificate PDF sau khi hoàn thành course.
+- `comments`: Q&A/comment trong lesson.
+- `course_reviews`: learner review/rating course.
+- `coupons`, `coupon_redemptions`: mã giảm giá; hiện Payment Checkout MVP đã chốt không hỗ trợ coupon/voucher.
+- `chat_threads`, `chat_messages`: chat system.
 
 ---
 
-## 7. Gợi ý chuẩn đặt tên và triển khai
+## 4. Database Constraints & Rules Enforcement
 
-- Tên bảng dùng dạng số nhiều, chữ thường, snake_case: `users`, `course_sections`, `lesson_progress`.
-- Tên khóa chính thống nhất là `id`.
-- Tên khóa ngoại dùng dạng `<entity>_id`, ví dụ `user_id`, `course_id`, `lesson_id`.
-- Các bảng nghiệp vụ nên có `created_at` và `updated_at`.
-- Các bảng cần xóa mềm nên có `deleted_at`, đặc biệt là `users` và `courses`.
-- Các trạng thái nên dùng `VARCHAR` kết hợp CHECK constraint hoặc dùng ENUM tùy hệ quản trị database.
-- Không nên lưu password, access token, refresh token hoặc OTP ở dạng plain text.
-- Các trường có dữ liệu linh hoạt như `questions`, `answers`, `rubric`, `payload`, `raw_response` có thể dùng `JSONB` nếu dùng PostgreSQL.
+Các ràng buộc dưới đây nhằm bảo vệ invariant nghiệp vụ ở tầng database. Với MySQL + Prisma, một số rule vẫn cần enforce thêm ở service layer vì MySQL không hỗ trợ partial index theo điều kiện động như `expires_at > NOW()`.
+
+### 4.1 Auth & User Constraints
+
+```sql
+ALTER TABLE users
+  ADD CONSTRAINT chk_users_status
+  CHECK (status IN ('active', 'blocked', 'pending_verification'));
+```
+
+```sql
+CREATE UNIQUE INDEX idx_users_email ON users (email);
+CREATE UNIQUE INDEX idx_roles_code ON roles (code);
+```
+
+### 4.2 Course Constraints
+
+```sql
+ALTER TABLE courses
+  ADD CONSTRAINT chk_courses_price
+  CHECK (price >= 0);
+```
+
+```sql
+ALTER TABLE courses
+  ADD CONSTRAINT chk_courses_status
+  CHECK (status IN ('draft', 'active', 'inactive', 'archived'));
+```
+
+```sql
+ALTER TABLE course_sections
+  ADD CONSTRAINT uq_course_sections_order
+  UNIQUE (course_id, order_index);
+```
+
+```sql
+ALTER TABLE lessons
+  ADD CONSTRAINT uq_lessons_order
+  UNIQUE (section_id, order_index);
+```
+
+### 4.3 Payment & Enrollment Constraints
+
+```sql
+CREATE UNIQUE INDEX idx_payments_payment_ref ON payments (payment_ref);
+```
+
+```sql
+CREATE UNIQUE INDEX idx_payments_transaction_id ON payments (transaction_id);
+```
+
+Ghi chú MySQL: unique index cho phép nhiều giá trị `NULL`, nên nhiều payment chưa có `transaction_id` vẫn hợp lệ. Khi VNPAY callback gán `transaction_id`, DB sẽ chặn trùng transaction id.
+
+```sql
+ALTER TABLE enrollments
+  ADD CONSTRAINT uq_enrollments_user_course
+  UNIQUE (user_id, course_id);
+```
+
+```sql
+ALTER TABLE payments
+  ADD CONSTRAINT chk_payments_status
+  CHECK (status IN ('PENDING', 'EXPIRED', 'SUCCESS', 'FAILED', 'CANCELLED'));
+```
+
+Rule bắt buộc ở service layer:
+
+- Không tạo hơn một active `PENDING` payment cho cùng `user_id + course_id`.
+- Khi checkout lại và pending cũ hết hạn, phải cập nhật pending cũ thành `EXPIRED` trong transaction trước khi tạo payment mới.
+- Payment callback phải idempotent theo `payment_ref` và `transaction_id`.
+- Tạo `payment SUCCESS -> enrollment CREATED` phải nằm trong cùng transaction.
+
+### 4.4 Learning & Quiz Constraints
+
+```sql
+ALTER TABLE lesson_progress
+  ADD CONSTRAINT uq_lesson_progress_user_lesson
+  UNIQUE (user_id, lesson_id);
+```
+
+```sql
+ALTER TABLE course_progress
+  ADD CONSTRAINT uq_course_progress_user_course
+  UNIQUE (user_id, course_id);
+```
+
+```sql
+ALTER TABLE lesson_progress
+  ADD CONSTRAINT chk_lesson_progress_percent
+  CHECK (progress_percent >= 0 AND progress_percent <= 100);
+```
+
+```sql
+ALTER TABLE course_progress
+  ADD CONSTRAINT chk_course_progress_percent
+  CHECK (progress_percent >= 0 AND progress_percent <= 100);
+```
+
+### 4.5 Mentor & Review Constraints
+
+```sql
+ALTER TABLE mentor_assignments
+  ADD CONSTRAINT uq_mentor_assignments_mentor_course
+  UNIQUE (mentor_id, course_id);
+```
+
+```sql
+ALTER TABLE project_reviews
+  ADD CONSTRAINT chk_project_reviews_result
+  CHECK (result IN ('PASS', 'FAIL'));
+```
+
+Rule bắt buộc ở service layer:
+
+- Mentor chỉ được review submission thuộc course mà mentor đang được assign.
+- User có role Mentor chưa đủ; phải có `mentor_assignments.status = 'active'`.
+- Khi review PASS/FAIL, cập nhật `project_submissions.status` tương ứng trong transaction.
 
 ---
 
-## 8. Kết luận
+## 5. Tối Ưu Hóa & Chỉ Mục (Indexes)
 
-Thiết kế database trên đáp ứng các nghiệp vụ cốt lõi của một hệ thống E-learning / LMS gồm quản lý người dùng, khóa học, nội dung học tập, tiến độ học, đánh giá, feedback, thanh toán và thông báo. Cấu trúc này có thể mở rộng thêm các module nâng cao như:
+### 5.1 Auth/User Indexes
 
-- Giỏ hàng và bảng `order_items`.
-- Coupon/voucher giảm giá.
-- Chứng chỉ hoàn thành khóa học.
-- Bình luận/thảo luận trong bài học.
-- Live class hoặc lịch học trực tuyến.
-- Hệ thống rating/review khóa học.
-- Audit log theo dõi hành động của admin và người dùng.
+```sql
+CREATE INDEX idx_users_role_status ON users (role_id, status);
+CREATE INDEX idx_refresh_tokens_user ON refresh_tokens (user_id, expires_at);
+CREATE INDEX idx_email_verifications_user ON email_verifications (user_id, expires_at);
+CREATE INDEX idx_password_reset_tokens_user ON password_reset_tokens (user_id, expires_at);
+```
+
+### 5.2 Course Search Indexes
+
+```sql
+CREATE INDEX idx_courses_category_status ON courses (category_id, status);
+CREATE INDEX idx_courses_paid_price ON courses (is_paid, price);
+CREATE INDEX idx_courses_created_at ON courses (created_at DESC);
+CREATE INDEX idx_course_sections_course_order ON course_sections (course_id, order_index);
+CREATE INDEX idx_lessons_section_order ON lessons (section_id, order_index);
+```
+
+Nếu MySQL full-text search được bật:
+
+```sql
+CREATE FULLTEXT INDEX idx_courses_search ON courses (title, description);
+```
+
+### 5.3 Payment/Enrollment Indexes
+
+```sql
+CREATE INDEX idx_payments_user_course_status ON payments (user_id, course_id, status);
+CREATE INDEX idx_payments_status_expires ON payments (status, expires_at);
+CREATE INDEX idx_payments_created_at ON payments (created_at DESC);
+CREATE INDEX idx_orders_user_status ON orders (user_id, status);
+CREATE INDEX idx_enrollments_user_status ON enrollments (user_id, status);
+CREATE INDEX idx_enrollments_course_status ON enrollments (course_id, status);
+CREATE INDEX idx_payment_events_payment_time ON payment_events (payment_id, created_at DESC);
+```
+
+### 5.4 Learning/Quiz Indexes
+
+```sql
+CREATE INDEX idx_lesson_progress_user_status ON lesson_progress (user_id, status);
+CREATE INDEX idx_course_progress_user_status ON course_progress (user_id, status);
+CREATE INDEX idx_quizzes_course_status ON quizzes (course_id, status);
+CREATE INDEX idx_quiz_submissions_user_quiz ON quiz_submissions (user_id, quiz_id, submitted_at DESC);
+```
+
+### 5.5 Project/Mentor/Admin Indexes
+
+```sql
+CREATE INDEX idx_project_submissions_course_status ON project_submissions (course_id, status);
+CREATE INDEX idx_project_submissions_user_course ON project_submissions (user_id, course_id);
+CREATE INDEX idx_mentor_assignments_mentor_status ON mentor_assignments (mentor_id, status);
+CREATE INDEX idx_project_reviews_submission ON project_reviews (submission_id);
+CREATE INDEX idx_notifications_user_unread ON notifications (user_id, is_read, created_at DESC);
+CREATE INDEX idx_audit_logs_record ON audit_logs (table_name, record_id);
+CREATE INDEX idx_audit_logs_time ON audit_logs (created_at DESC);
+```
+
+---
+
+## 6. Ghi Chú Triển Khai Với Prisma
+
+1. Prisma schema nên dùng `Decimal` cho `price`, `amount`, `score`, `progress_percent`.
+2. Với MySQL, UUID có thể lưu bằng `String @db.Char(36)` để dễ debug trong đồ án.
+3. Không tự viết raw SQL trong service. Nếu cần `SELECT ... FOR UPDATE` cho payment race condition, chỉ đặt trong repository và ghi rõ lý do.
+4. Migration cũ không được sửa/xóa sau khi đã apply vào database chung.
+5. `provider_payload`, `metadata`, `permissions`, `answers`, `options`, `correct_answer`, `data` dùng JSON nhưng phải sanitize trước khi lưu.
+6. Không lưu secret VNPAY, JWT, password plain text, raw reset token hoặc raw verification token vào DB.
+7. Các bảng `payment_events`, `audit_logs`, `notifications`, `report_snapshots` có thể triển khai sau nếu MVP muốn giảm scope, nhưng `payments` và `enrollments` là bắt buộc cho paid course access.
