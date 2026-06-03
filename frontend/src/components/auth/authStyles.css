@@ -252,12 +252,14 @@ body {
 .auth-panel {
   display: flex;
   flex-direction: column;
+  align-items: center;
   justify-content: center;
   padding: 48px;
 }
 
 .auth-panel-inner {
   width: min(100%, 400px);
+  margin-inline: auto;
 }
 
 .auth-form {
@@ -345,6 +347,7 @@ body {
 
 .auth-footer {
   width: min(100%, 400px);
+  margin-inline: auto;
   margin-top: 16px;
 }
 
