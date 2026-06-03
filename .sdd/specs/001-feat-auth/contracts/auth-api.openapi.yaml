@@ -1,0 +1,437 @@
+openapi: 3.0.3
+info:
+  title: OCP Auth API
+  version: 1.0.0
+  description: REST contract for feat-auth. All session-bearing requests use httpOnly cookies and credentialed browser requests.
+servers:
+  - url: http://localhost:5050/api
+paths:
+  /auth/register:
+    post:
+      summary: Register a public learner and send verification OTP
+      operationId: registerLearner
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '201':
+          description: Pending learner created and OTP email send attempted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '409':
+          $ref: '#/components/responses/ConflictError'
+        '503':
+          $ref: '#/components/responses/EmailUnavailableError'
+  /auth/verify-email:
+    post:
+      summary: Verify latest email OTP and issue auth cookies
+      operationId: verifyEmailOtp
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VerifyEmailRequest'
+      responses:
+        '200':
+          description: Email verified and auth cookies set
+          headers:
+            Set-Cookie:
+              schema:
+                type: string
+              description: Sets `ocp_access_token` and `ocp_refresh_token` as httpOnly cookies
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/AuthError'
+  /auth/resend-verification:
+    post:
+      summary: Resend verification OTP for a pending local user
+      operationId: resendVerificationOtp
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EmailOnlyRequest'
+      responses:
+        '200':
+          description: Resend handled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardResponse'
+        '429':
+          $ref: '#/components/responses/RateLimitedError'
+        '503':
+          $ref: '#/components/responses/EmailUnavailableError'
+  /auth/login:
+    post:
+      summary: Login with local email and password
+      operationId: login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Login successful and auth cookies set
+          headers:
+            Set-Cookie:
+              schema:
+                type: string
+              description: Sets `ocp_access_token` and `ocp_refresh_token` as httpOnly cookies
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/AuthError'
+  /auth/refresh:
+    post:
+      summary: Rotate refresh token and issue a new access session
+      operationId: refresh
+      responses:
+        '200':
+          description: Refresh token rotated and cookies updated
+          headers:
+            Set-Cookie:
+              schema:
+                type: string
+              description: Replaces auth cookies with rotated session cookies
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '401':
+          $ref: '#/components/responses/AuthError'
+  /auth/logout:
+    post:
+      summary: Revoke active refresh token and clear auth cookies
+      operationId: logout
+      responses:
+        '200':
+          description: Logout complete
+          headers:
+            Set-Cookie:
+              schema:
+                type: string
+              description: Clears `ocp_access_token` and `ocp_refresh_token`
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardResponse'
+  /auth/me:
+    get:
+      summary: Read current safe user/profile from backend session
+      operationId: getCurrentUser
+      responses:
+        '200':
+          description: Current user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CurrentUserResponse'
+        '401':
+          $ref: '#/components/responses/AuthError'
+  /auth/forgot-password:
+    post:
+      summary: Request password reset OTP with non-enumerating public response
+      operationId: forgotPassword
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EmailOnlyRequest'
+      responses:
+        '200':
+          description: Public non-enumerating response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '503':
+          $ref: '#/components/responses/EmailUnavailableError'
+  /auth/reset-password:
+    post:
+      summary: Verify reset OTP and set a new local password
+      operationId: resetPassword
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResetPasswordRequest'
+      responses:
+        '200':
+          description: Password reset complete
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/AuthError'
+  /auth/google/config:
+    get:
+      summary: Return safe Google OAuth availability for frontend UX
+      operationId: getGoogleConfig
+      responses:
+        '200':
+          description: Google configuration status. Only non-secret values may be returned.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GoogleConfigResponse'
+  /auth/google:
+    post:
+      summary: Complete Google sign-in or linking with backend verification
+      operationId: googleLogin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GoogleLoginRequest'
+      responses:
+        '200':
+          description: Google login/link succeeded and auth cookies set
+          headers:
+            Set-Cookie:
+              schema:
+                type: string
+              description: Sets `ocp_access_token` and `ocp_refresh_token` as httpOnly cookies
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/AuthError'
+        '503':
+          description: Google OAuth is not configured
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/StandardResponse'
+                  - type: object
+                    properties:
+                      code:
+                        example: GOOGLE_NOT_CONFIGURED
+  /auth/set-password:
+    post:
+      summary: Authenticated Google-only user sets first local password
+      operationId: setPassword
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SetPasswordRequest'
+      responses:
+        '200':
+          description: Local password created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/AuthError'
+components:
+  responses:
+    ValidationError:
+      description: Request validation failed
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/StandardResponse'
+    AuthError:
+      description: Authentication or authorization failed
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/StandardResponse'
+    ConflictError:
+      description: Duplicate or conflicting Auth state
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/StandardResponse'
+    RateLimitedError:
+      description: OTP resend cooldown or attempt limit reached
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/StandardResponse'
+    EmailUnavailableError:
+      description: Email delivery is not configured or failed safely
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/StandardResponse'
+  schemas:
+    StandardResponse:
+      type: object
+      required: [success, message, code]
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        code:
+          type: string
+        details:
+          nullable: true
+    RegisterRequest:
+      type: object
+      required: [fullName, email, password]
+      additionalProperties: false
+      properties:
+        fullName:
+          type: string
+          minLength: 1
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 8
+    VerifyEmailRequest:
+      type: object
+      required: [email, otp]
+      additionalProperties: false
+      properties:
+        email:
+          type: string
+          format: email
+        otp:
+          type: string
+          pattern: '^[0-9]{6}$'
+    EmailOnlyRequest:
+      type: object
+      required: [email]
+      additionalProperties: false
+      properties:
+        email:
+          type: string
+          format: email
+    LoginRequest:
+      type: object
+      required: [email, password]
+      additionalProperties: false
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+    ResetPasswordRequest:
+      type: object
+      required: [email, otp, newPassword]
+      additionalProperties: false
+      properties:
+        email:
+          type: string
+          format: email
+        otp:
+          type: string
+          pattern: '^[0-9]{6}$'
+        newPassword:
+          type: string
+          minLength: 8
+    GoogleLoginRequest:
+      type: object
+      required: [credential]
+      additionalProperties: false
+      properties:
+        credential:
+          type: string
+          description: Provider-issued Google credential from approved Google UX, never user-typed raw credentials
+    SetPasswordRequest:
+      type: object
+      required: [newPassword]
+      additionalProperties: false
+      properties:
+        newPassword:
+          type: string
+          minLength: 8
+    SafeUser:
+      type: object
+      required: [id, name, email, role, status, emailVerified, hasLocalPassword]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+        avatarUrl:
+          type: string
+          nullable: true
+        role:
+          type: string
+        status:
+          type: string
+        emailVerified:
+          type: boolean
+        hasLocalPassword:
+          type: boolean
+    AuthResponse:
+      allOf:
+        - $ref: '#/components/schemas/StandardResponse'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                user:
+                  $ref: '#/components/schemas/SafeUser'
+    CurrentUserResponse:
+      allOf:
+        - $ref: '#/components/schemas/StandardResponse'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                user:
+                  $ref: '#/components/schemas/SafeUser'
+    GoogleConfigResponse:
+      allOf:
+        - $ref: '#/components/schemas/StandardResponse'
+        - type: object
+          properties:
+            data:
+              type: object
+              required: [configured]
+              properties:
+                configured:
+                  type: boolean
+                clientId:
+                  type: string
+                  nullable: true
+                  description: Non-secret Google client id only when safe to expose

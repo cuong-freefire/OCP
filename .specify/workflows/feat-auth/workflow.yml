@@ -1,0 +1,215 @@
+schema_version: "1.0"
+workflow:
+  id: "feat-auth"
+  name: "Workflow Tính năng Xác thực (Auth)"
+  version: "1.0.0"
+  author: "Đội ngũ OCP"
+  description: "Tạo tài liệu bối cảnh xác thực (auth context), sau đó chạy các lệnh đặc tả (specify), lập kế hoạch (plan) và tạo nhiệm vụ (tasks) của Speckit."
+  integration: "auto"
+
+requires:
+  speckit_version: ">=0.8.18"
+  integrations:
+    any:
+      - "codex"
+      - "claude"
+      - "copilot"
+      - "gemini"
+
+inputs:
+  feature_dir:
+    type: string
+    default: ".sdd/specs/001-auth"
+    prompt: "Thư mục lưu trữ các tài liệu (artifacts) của tính năng auth"
+  integration:
+    type: string
+    default: "auto"
+    prompt: "Tích hợp sẽ sử dụng; 'auto' nghĩa là dùng tích hợp đã được khởi tạo của dự án"
+  feature:
+    type: string
+    default: "Xây dựng tính năng xác thực OCP bao gồm: đăng ký học viên bằng fullName/email/password, trong đó fullName được lưu đồng bộ vào users.name và backend tự gán vai trò LEARNER; đăng nhập bằng email/mật khẩu nội bộ, xác thực OTP qua email, đăng nhập/liên kết tài khoản bằng Google OAuth, phiên làm việc (session) lưu trong JWT httpOnly cookie, mã hóa mật khẩu bằng bcrypt, khôi phục mật khẩu cho tài khoản nội bộ bằng OTP email sau khi backend xác nhận email tồn tại, thiết lập mật khẩu trong ứng dụng (khi đã đăng nhập) dành cho người dùng chỉ có tài khoản Google, đọc thông tin người dùng hiện tại/hồ sơ cá nhân, phân quyền phía backend dựa trên vai trò (role), từ chối người dùng bị khóa/xóa, và phía frontend hỗ trợ cấu hình với Credentials (withCredentials: true). Backend đóng vai trò là nguồn dữ liệu chuẩn duy nhất (source of truth). Không sử dụng xác thực Bearer, không lưu JWT trong localStorage, không phân quyền dựa vào phía frontend, không lưu trữ token OAuth thô và không yêu cầu người dùng nhập thông tin đăng nhập Google trực tiếp. Registration không nhận hoặc upload profile image/avatar; avatar_url có thể để null. Upload/cập nhật file ảnh hồ sơ qua public/images là phạm vi của profile update feature sau, không thuộc feat-auth hiện tại."
+    prompt: "Mô tả tính năng Xác thực (Auth)"
+
+steps:
+  - id: context
+    type: prompt
+    integration: "{{ inputs.integration }}"
+    prompt: |
+      Tạo tài liệu bối cảnh tính năng (feature context) tại đường dẫn {{ inputs.feature_dir }}/context.md cho tính năng feat-auth.
+
+      Bạn BẮT BUỘC phải đọc các file sau trước khi viết tài liệu bối cảnh:
+      - DATABASE.md
+      - AGENTS.md
+      - PROJECT_AGENTS.md
+      - frontend/DESIGN.md
+      - backend/.env.example
+      - frontend/.env.example
+
+      Sử dụng các quy tắc của dự án OCP từ các file trên như các ràng buộc bắt buộc.
+      Tài liệu bối cảnh BẮT BUỘC phải sử dụng chính xác các phần sau:
+      1. PROBLEM STATEMENT (Tuyên bố bài toán)
+      2. DOMAIN KNOWLEDGE (Kiến thức chuyên môn / Nghiệp vụ)
+      3. STAKEHOLDERS (Các bên liên quan)
+      4. CONSTRAINTS (Các ràng buộc)
+      5. ASSUMPTIONS (Các giả định)
+      6. OPEN QUESTIONS (Các câu hỏi còn bỏ ngỏ)
+
+      Phạm vi tính năng:
+      {{ inputs.feature }}
+
+      Bao gồm các ràng buộc xác thực (auth) sau:
+      - JWT chỉ được lưu trữ trong Cookie httpOnly.
+      - Backend đọc token xác thực từ req.cookies.
+      - Frontend gửi thông tin xác thực với cấu hình withCredentials: true.
+      - Cookie auth MVP dùng sameSite = "lax", secure = false ở local dev, secure = true ở production, và không set domain mặc định trừ khi cấu hình deploy yêu cầu.
+      - CORS phải allow chính xác FRONTEND_ORIGIN và credentials: true; không dùng wildcard origin khi gửi cookie.
+      - MVP same-site chưa bắt buộc CSRF token; nếu phải dùng cross-site cookie SameSite=None thì phải bổ sung CSRF protection trước khi implement endpoint state-changing.
+      - Xác thực nội bộ sử dụng bcrypt và trường users.password_hash.
+      - Google OAuth ánh xạ người dùng qua bảng oauth_accounts với provider = GOOGLE và provider_user_id = Google sub.
+      - Không lưu trữ các token id_token, access_token, hoặc refresh_token của Google vào cơ sở dữ liệu hoặc nhật ký hệ thống (logs).
+      - Đăng ký tài khoản nội bộ cần xác thực email bằng mã OTP gồm 6 chữ số, không gửi chuỗi token/đường link thô trực tiếp cho người dùng.
+      - Đăng ký tài khoản học viên bắt buộc nhận fullName, email, password; fullName map vào users.name; backend tự gán role LEARNER từ roles.code = "LEARNER"; frontend không được gửi role.
+      - Registration không nhận profile image/avatar, không upload image, và có thể để users.avatar_url = NULL. Upload/cập nhật file ảnh hồ sơ qua public/images là phạm vi profile update feature sau, không thuộc feat-auth hiện tại.
+      - Mã OTP xác thực email sẽ hết hạn sau 10 phút, cho phép thử sai tối đa 5 lần, và thời gian chờ (cooldown) để gửi lại mã là 60 giây. Khi resend OTP xác thực email, OTP cũ chưa dùng phải bị vô hiệu hóa và chỉ OTP mới nhất còn hiệu lực.
+      - Khi xác thực email bằng OTP thành công, backend phải chuyển user sang active/email_verified và cấp cookie ocp_access_token + ocp_refresh_token để người dùng được đăng nhập ngay.
+      - Khôi phục mật khẩu dùng OTP gửi qua email, không dùng reset token/link cho người dùng. Reset OTP là mã 6 chữ số, hết hạn sau 10 phút, cho phép thử sai tối đa 5 lần, và resend cooldown là 60 giây. Khi resend reset OTP, OTP cũ chưa dùng phải bị vô hiệu hóa và chỉ OTP mới nhất còn hiệu lực.
+      - Backend phải kiểm tra email có tồn tại và là tài khoản local có password_hash trước khi tạo/gửi OTP reset; không tạo OTP reset cho email không tồn tại hoặc Google-only user. Public forgot-password response phải dùng thông báo chung để tránh dò email đã đăng ký.
+      - Việc gửi email sử dụng Nodemailer SMTP; ứng dụng khi khởi động vẫn có thể tiếp tục nếu thiếu cấu hình SMTP, nhưng các thao tác gửi email đăng ký/khôi phục mật khẩu phải thất bại một cách an toàn (fail safely).
+      - Giao diện đăng nhập Google tuyệt đối không yêu cầu người dùng nhập hoặc dán thông tin đăng nhập OAuth thô; nếu thiếu cấu hình Google ở phía backend, giao diện phải hiển thị trạng thái an toàn là "chưa được cấu hình".
+      - Với Google OAuth, không tin tưởng email/name/avatar/providerUserId do frontend tự gửi nếu chưa được backend verify từ Google token. Với mọi flow, không tin role, userId, account status hoặc quyền truy cập do frontend gửi.
+      - Trạng thái người dùng bị khóa (blocked) hoặc bị xóa (deleted) phải từ chối cả phương thức đăng nhập nội bộ và đăng nhập Google.
+      - Nhà cung cấp dịch vụ thanh toán độc lập với nhà cung cấp dịch vụ định danh: payments.provider = VNPAY, oauth_accounts.provider = GOOGLE.
+      - Mọi trang/giao diện Auth phía frontend phải bám theo frontend/DESIGN.md về bố cục, visual style, component style, trạng thái UI và UX. Không tự tạo hướng thiết kế trái với DESIGN.md.
+      - Các biến môi trường phải dùng đúng tên trong backend/.env.example và frontend/.env.example. Không tự đặt tên biến khác cho cùng một ý nghĩa.
+
+      Không triển khai code. Chỉ tạo mới hoặc cập nhật file context.md.
+
+  - id: specify
+    command: speckit.specify
+    integration: "{{ inputs.integration }}"
+    input:
+      args: |
+        SPECIFY_FEATURE_DIRECTORY={{ inputs.feature_dir }}
+
+        Sử dụng cú pháp lệnh mới nhất của Speckit cho lệnh speckit.specify.
+
+        Bạn BẮT BUỘC phải đọc các file sau trước khi tạo file spec.md:
+        - DATABASE.md
+        - AGENTS.md
+        - PROJECT_AGENTS.md
+        - frontend/DESIGN.md
+        - backend/.env.example
+        - frontend/.env.example
+        - {{ inputs.feature_dir }}/context.md
+
+        Tạo đặc tả tính năng (feature specification) cho tính năng feat-auth.
+
+        Phạm vi tính năng:
+        {{ inputs.feature }}
+
+        Hành vi bắt buộc:
+        - Đăng ký tài khoản Học viên (learner) bằng fullName, email, và password; fullName phải map vào users.name; backend tự gán role LEARNER từ roles.code = "LEARNER"; frontend không được gửi role.
+        - Đăng nhập/đăng xuất sử dụng JWT lưu trong Cookie httpOnly.
+        - Đọc thông tin người dùng hiện tại/hồ sơ cá nhân từ phiên làm việc (session) của backend.
+        - Không upload profile image/avatar trong registration; users.avatar_url có thể để NULL. Upload/cập nhật file ảnh hồ sơ qua public/images là phạm vi profile update feature sau, không thuộc feat-auth hiện tại.
+        - Xác thực email bằng mã OTP 6 chữ số được lưu trữ dưới dạng bằng chứng bảo mật (không lưu mã thô). OTP xác thực email hết hạn sau 10 phút, tối đa 5 lần nhập sai, resend cooldown 60 giây, và resend phải vô hiệu OTP cũ chưa dùng.
+        - Khi xác thực email bằng OTP thành công, backend phải chuyển user sang active/email_verified và cấp cookie ocp_access_token + ocp_refresh_token để người dùng được đăng nhập ngay.
+        - Đặt lại mật khẩu cho các tài khoản nội bộ hiện có bằng OTP email. Backend phải kiểm tra email tồn tại và tài khoản có password_hash trước khi tạo/gửi OTP; không tạo OTP reset cho email không tồn tại; không dùng reset token/link cho người dùng; public forgot-password response phải dùng thông báo chung để tránh dò email đã đăng ký.
+        - Reset password OTP là mã 6 chữ số, hết hạn sau 10 phút, tối đa 5 lần nhập sai, resend cooldown 60 giây, và resend phải vô hiệu OTP cũ chưa dùng.
+        - Cho phép người dùng chỉ đăng nhập bằng Google tạo mật khẩu nội bộ đầu tiên của họ, nhưng chỉ được thực hiện từ bên trong ứng dụng sau khi đã đăng nhập thành công.
+        - Hỗ trợ đăng nhập/liên kết tài khoản bằng Google OAuth thông qua bảng oauth_accounts.
+        - Hiển thị nút đăng nhập bằng Google ngay cả khi thiếu cấu hình Google, nhưng khi nhấp vào chỉ hiển thị trạng thái an toàn là "chưa được cấu hình" và không bao giờ yêu cầu nhập thông tin OAuth thô.
+        - Các màn hình Auth frontend phải bám theo frontend/DESIGN.md; spec phải ghi rõ đây là ràng buộc thiết kế cho UI/UX, không để agent tự chọn style khác.
+        - Spec phải ghi rõ các biến môi trường cần thiết dựa trên backend/.env.example và frontend/.env.example, gồm API base URL, CORS origin, cookie/JWT config, database URL, SMTP config bằng SMTP_HOST/SMTP_PORT/SMTP_SECURE/SMTP_USER/SMTP_PASS/SMTP_FROM_NAME/SMTP_FROM_EMAIL, Google OAuth config bằng AUTH_GOOGLE_ID/AUTH_GOOGLE_SECRET và OTP config.
+        - Backend implementation được phép load backend/.env bằng dotenv và đọc qua process.env, nhưng không được log hoặc trả về secret env value. Chỉ được nhắc tên biến trong log/error/docs.
+        - Từ chối đăng nhập đối với người dùng bị khóa/xóa ở tất cả các phương thức đăng nhập.
+        - Áp dụng backend làm nguồn dữ liệu chuẩn duy nhất cho các thông tin về vai trò (role), ID người dùng (userId), và quyền truy cập.
+        - Giữ vững ranh giới của module auth; các module khác sẽ sử dụng dữ liệu thông qua các giao ước (contracts) của Auth/User.
+        - Xác định rõ ràng các phần nằm ngoài phạm vi (out-of-scope): thanh toán khóa học (payment checkout), ghi danh (enrollment), tiến độ học tập, các chức năng CRUD của admin, CRUD khóa học, và upload/cập nhật file ảnh hồ sơ.
+
+        Các quyết định sản phẩm đã được thông qua:
+        - Người dùng nội bộ đang chờ xác thực (pending-verification) BẮT BUỘC KHÔNG được cấp phiên đăng nhập cho đến khi xác thực email thành công.
+        - Quá trình đăng ký sẽ tạo ngay một người dùng với trạng thái pending_verification và chỉ kích hoạt tài khoản sau khi xác thực OTP thành công.
+        - Sau khi xác thực OTP email thành công, hệ thống phải tự động đăng nhập người dùng bằng cách cấp ocp_access_token và ocp_refresh_token.
+        - fullName trong request đăng ký được lưu vào users.name để đồng bộ với DATABASE.md.
+        - User đăng ký public được backend tự gán vai trò LEARNER bằng roles.code = "LEARNER"; frontend không được gửi hoặc quyết định role.
+        - Mã OTP xác thực email gồm 6 chữ số, hết hạn sau 10 phút, cho phép thử sai tối đa 5 lần, và giới hạn gửi lại mã là 60 giây. Resend OTP xác thực email phải vô hiệu OTP cũ chưa dùng.
+        - Quên/đặt lại mật khẩu dùng OTP email, không dùng reset token/link. Backend phải kiểm tra email tồn tại và là local account có password_hash trước khi tạo/gửi OTP reset. Không tạo OTP reset cho email không tồn tại hoặc Google-only user có password_hash = NULL. Public forgot-password response phải dùng thông báo chung để tránh dò email đã đăng ký.
+        - Reset password OTP gồm 6 chữ số, hết hạn sau 10 phút, cho phép thử sai tối đa 5 lần, và giới hạn gửi lại mã là 60 giây. Resend reset OTP phải vô hiệu OTP cũ chưa dùng.
+        - Gửi email sử dụng Nodemailer SMTP. Ứng dụng có thể khởi động khi không có cấu hình SMTP, nhưng các hành động gửi email đăng ký/đặt lại mật khẩu phải thất bại một cách an toàn và không được báo thành công giả tạo (silently succeed).
+        - Người dùng Google OAuth có email đã được Google xác thực có thể được tạo dưới dạng tài khoản học viên đã xác thực email (email_verified) và ở trạng thái hoạt động (active).
+        - Nếu email được xác thực bởi Google trùng với email của một người dùng OCP đang hoạt động nhưng chưa có liên kết oauth_accounts, hãy tạo liên kết OAuth cho người dùng hiện tại đó và bắt đầu phiên làm việc bảo mật như bình thường.
+        - Chức năng quên mật khẩu công khai ngoài màn hình đăng nhập KHÔNG ĐƯỢC PHÉP tạo mật khẩu nội bộ đầu tiên cho người dùng chỉ đăng nhập bằng Google (những người có trường password_hash = NULL); họ phải đăng nhập bằng Google trước, sau đó sử dụng tính năng đặt mật khẩu nội bộ từ bên trong ứng dụng.
+        - Phiên làm việc sử dụng cơ chế Token làm mới (Refresh-token) nằm trong phạm vi phát triển. Chỉ lưu trữ bản băm của refresh token trong bảng refresh_tokens; tiến hành xoay vòng (rotate) và thu hồi (revoke) các refresh token khi làm mới phiên hoặc đăng xuất.
+        - Tên của các cookie: ocp_access_token và ocp_refresh_token.
+        - Cookie/CORS: sameSite = "lax"; secure = false ở local dev; secure = true ở production; CORS dùng exact FRONTEND_ORIGIN + credentials: true; không dùng wildcard origin khi gửi cookie.
+        - CSRF: MVP same-site chưa bắt buộc CSRF token; nếu deploy bắt buộc SameSite=None/cross-site cookie thì phải bổ sung CSRF protection trước khi implement endpoint state-changing.
+        - Middleware sẽ đính kèm thông tin định danh đáng tin cậy vào thuộc tính req.user.
+        - Phiên refresh token vẫn nằm trong scope: access token hết hạn sau 15 minutes; refresh token hết hạn sau 7 ngày; refresh token được rotate khi refresh và revoke khi logout.
+        - Bảng password_reset_tokens dùng cho reset OTP phải có các field tương đương: otp_hash, expires_at, used_at, failed_attempts, locked_at, last_sent_at, created_at. Nếu dùng tên bảng khác, spec phải ghi rõ mapping và không được lưu raw OTP.
+
+        Không bao gồm các chi tiết triển khai mã nguồn nằm ngoài yêu cầu đặc tả của Speckit.
+
+  - id: plan
+    command: speckit.plan
+    integration: "{{ inputs.integration }}"
+    input:
+      args: |
+        Sử dụng cú pháp lệnh mới nhất của Speckit cho lệnh speckit.plan.
+
+        Bạn BẮT BUỘC phải đọc các file sau trước khi tạo file plan.md:
+        - DATABASE.md
+        - AGENTS.md
+        - PROJECT_AGENTS.md
+        - frontend/DESIGN.md
+        - backend/.env.example
+        - frontend/.env.example
+        - {{ inputs.feature_dir }}/context.md
+        - {{ inputs.feature_dir }}/spec.md
+
+        Các ràng buộc kỹ thuật:
+        - Backend: REST API viết bằng NodeJS + JavaScript ESM theo phong cách Express; dùng package.json "type": "module" và import/export; không dùng TypeScript hoặc CommonJS cho scope hiện tại.
+        - Frontend: React + JSX + Bootstrap bằng Create React App/react-scripts; API client phải gửi cookie bằng withCredentials: true.
+        - Frontend UI: Bắt buộc đọc và bám frontend/DESIGN.md khi lập kế hoạch các trang Login/Register/Verify/Forgot/Reset/Google not-configured state và các component Auth liên quan.
+        - Env config: Bắt buộc dùng đúng tên biến trong backend/.env.example và frontend/.env.example. Backend load backend/.env bằng dotenv và đọc qua process.env. Backend dùng FRONTEND_ORIGIN, DATABASE_URL, AUTH_SECRET, JWT_ACCESS_EXPIRES_IN, JWT_REFRESH_EXPIRES_IN, BCRYPT_SALT_ROUNDS, Cookie/OTP config, SMTP_HOST/SMTP_PORT/SMTP_SECURE/SMTP_USER/SMTP_PASS/SMTP_FROM_NAME/SMTP_FROM_EMAIL và AUTH_GOOGLE_ID/AUTH_GOOGLE_SECRET. Frontend dùng REACT_APP_API_BASE_URL; không dùng VITE_*.
+        - Package manager: npm. Root/backend/frontend scripts dùng npm, không dùng pnpm/yarn trong scope này.
+        - Frontend env variables dùng prefix REACT_APP_, hiện cần REACT_APP_API_BASE_URL; không dùng VITE_. Không thêm REACT_APP_GOOGLE_CLIENT_ID trừ khi spec explicitly chọn frontend tự khởi tạo Google Identity Services.
+        - Test setup đã duyệt: backend dùng node:test + assert + supertest; frontend dùng node:test cho API client/source-rule tests nhẹ; không thêm Jest/Vitest/Cypress nếu chưa được duyệt.
+        - ORM/Cơ sở dữ liệu: Prisma + MySQL.
+        - Kiểm tra dữ liệu đầu vào (Validation): Sử dụng Zod cho body/query/params.
+        - Register schema bắt buộc có fullName, email, password; fullName map vào users.name; backend tự gán role LEARNER từ roles.code = "LEARNER"; không nhận image/avatar hoặc role trong register body.
+        - Xác thực (Auth): JWT lưu trong Cookie httpOnly, mã hóa bcrypt, Google OAuth.
+        - Cookie/CORS auth: sameSite = "lax", secure = false ở local dev, secure = true ở production, CORS exact FRONTEND_ORIGIN + credentials: true, không wildcard origin khi gửi cookie.
+        - CSRF: MVP same-site chưa bắt buộc CSRF token; nếu phải dùng SameSite=None/cross-site cookie thì phải bổ sung CSRF protection trước khi implement endpoint state-changing.
+        - Email: Bộ điều hợp (adapter) Nodemailer SMTP; quá trình khởi động hệ thống không bắt buộc phải có cấu hình SMTP, nhưng các thao tác gửi email phải thất bại một cách an toàn khi thiếu cấu hình.
+        - Xác thực email: Mã OTP 6 chữ số, hết hạn sau 10 phút, thử sai tối đa 5 lần, thời gian chờ gửi lại là 60 giây; resend vô hiệu OTP cũ chưa dùng; verify thành công active user và set auth cookies.
+        - Reset password: Dùng OTP email 6 chữ số, hết hạn sau 10 phút, thử sai tối đa 5 lần, thời gian chờ gửi lại là 60 giây; public forgot-password response không được tiết lộ email có tồn tại hay không; không tạo reset OTP cho email không tồn tại hoặc Google-only user.
+        - Mô hình dữ liệu (Data model) phải khớp với các bảng: roles, users, refresh_tokens, email_verifications, password_reset_tokens, oauth_accounts. password_reset_tokens phải dùng semantics reset OTP với otp_hash, expires_at, used_at, failed_attempts, locked_at, last_sent_at, created_at; không dùng raw token/link.
+        - Các Controller không được chứa logic nghiệp vụ (business logic).
+        - Các Service không được phép import trực tiếp thư viện Prisma.
+        - Các Repository nắm quyền truy cập và thao tác với cơ sở dữ liệu.
+        - Không lưu trữ các thông tin thô như: JWT thô, OTP xác thực email thô, OTP đặt lại mật khẩu thô, Google token thô, thông tin tài khoản SMTP, mật khẩu dạng văn bản thuần (plain text), hoặc các chuỗi bí mật (secrets).
+        - Sử dụng các giao ước (contracts) từ phía backend để quản lý định danh và phiên làm việc; các bộ bảo vệ (guards) ở frontend chỉ phục vụ cho trải nghiệm người dùng (UX).
+
+  - id: tasks
+    command: speckit.tasks
+    integration: "{{ inputs.integration }}"
+    input:
+      args: |
+        Sử dụng cú pháp lệnh mới nhất của Speckit cho lệnh speckit.tasks.
+
+        Bạn BẮT BUỘC phải đọc các file sau trước khi tạo file tasks.md:
+        - DATABASE.md
+        - AGENTS.md
+        - PROJECT_AGENTS.md
+        - frontend/DESIGN.md
+        - backend/.env.example
+        - frontend/.env.example
+        - {{ inputs.feature_dir }}/context.md
+        - {{ inputs.feature_dir }}/spec.md
+        - {{ inputs.feature_dir }}/plan.md
+
+        Tạo các nhiệm vụ (tasks) nhỏ gọn (atomic), có thứ tự phụ thuộc rõ ràng (dependency-ordered), và có thể kiểm thử được cho tính năng feat-auth.
+        Mỗi nhiệm vụ phải tham chiếu đến các yêu cầu trong tài liệu đặc tả (spec) và bao gồm các điều kiện nghiệm thu hoàn thành (done criteria) rõ ràng.
+        Bao gồm các kịch bản kiểm thử (tests) cho: đăng ký bắt buộc fullName/email/password, fullName được map vào users.name, backend tự gán role LEARNER và không nhận role/image/avatar từ frontend, xác thực nội bộ, xác thực OTP email, OTP email hết hạn, khóa OTP record khi thử sai OTP quá số lần, thời gian chờ gửi lại OTP email, resend OTP email vô hiệu OTP cũ, xác thực OTP email thành công thì active user và set auth cookies, quên/đặt lại mật khẩu bằng OTP email, reset OTP hết hạn, khóa reset OTP record khi thử sai quá số lần, thời gian chờ gửi lại reset OTP, resend reset OTP vô hiệu OTP cũ, không tạo reset OTP cho email không tồn tại, public forgot-password response không tiết lộ email tồn tại hay không, không tạo reset OTP cho Google-only user có password_hash = NULL, lỗi thiếu cấu hình Nodemailer, Google OAuth, tự động liên kết tài khoản khi trùng email Google đã xác thực, đặt mật khẩu trong ứng dụng cho tài khoản chỉ có Google, giao diện khi thiếu cấu hình Google, các trang/component Auth bám frontend/DESIGN.md, sử dụng đúng biến môi trường từ backend/.env.example và frontend/.env.example, hành vi của cookie, refresh token rotation/revoke, các lỗi kiểm tra dữ liệu đầu vào (validation errors), từ chối người dùng bị khóa/xóa, chính sách xử lý trùng email/liên kết tài khoản, và ngăn chặn rò rỉ chuỗi bí mật/token/OTP.
+        Không bao gồm việc thực thi hay chạy code trong workflow này.
