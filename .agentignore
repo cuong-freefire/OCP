@@ -108,3 +108,36 @@ uploads/
 
 # Module Cache
 .module-cache
+
+# =========================
+# AI Tools / IDE AI
+# =========================
+# Cursor
+.cursor/
+.cursorignore
+
+# Windsurf
+.windsurf/
+.windsurf-workflows/
+
+# Claude
+.claude/
+
+# Copilot / Codex
+.copilot/
+
+# Antigravity
+.antigravity/
+
+# AI Tool caches & sessions
+.ai-cache/
+.ai-sessions/
+.ai-history/
+*.ai-session
+*.ai-cache
+
+# AI Tool configs (keep API keys out)
+.ai-config.json
+.ai-secrets.json
+openai-api-key.txt
+anthropic-api-key.txt

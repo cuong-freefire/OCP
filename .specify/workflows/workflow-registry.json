@@ -1,0 +1,21 @@
+{
+  "schema_version": "1.0",
+  "workflows": {
+    "speckit": {
+      "name": "Full SDD Cycle",
+      "version": "1.0.0",
+      "description": "Runs specify \u2192 plan \u2192 tasks \u2192 implement with review gates",
+      "source": "bundled",
+      "installed_at": "2026-05-31T15:12:33.930674+00:00",
+      "updated_at": "2026-05-31T15:12:33.930695+00:00"
+    },
+    "feat-auth": {
+      "name": "OCP Auth Context Spec Plan Tasks",
+      "version": "1.0.0",
+      "description": "Creates auth context, then runs Speckit specify, plan, and tasks commands.",
+      "source": "C:\\Users\\Admin\\Desktop\\SWP\\OCP\\.specify\\workflows\\feat-auth\\workflow.yml",
+      "installed_at": "2026-05-31T15:35:57.314140+00:00",
+      "updated_at": "2026-06-02T00:00:00+00:00"
+    }
+  }
+}

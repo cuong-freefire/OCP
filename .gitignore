@@ -32,6 +32,7 @@ logs/
 # =========================
 .env
 .env.*
+!.env.example
 .env.local
 .env.development.local
 .env.test.local
@@ -206,3 +207,8 @@ uploads/
 *.tar
 *.gz
 *.rar
+
+# =========================
+# Spec Kit
+# =========================
+.specify/workflows/runs/
