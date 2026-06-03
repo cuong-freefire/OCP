@@ -132,11 +132,46 @@ node_modules/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+.pnpm-store/
+.npm/
+.yarn/
+.yarn-integrity
 
 # =========================
 # Test Coverage
 # =========================
 coverage/
+.nyc_output/
+
+# =========================
+# React / Build
+# =========================
+build/
+dist/
+.out/
+.next/
+.nuxt/
+.cache/
+.vite/
+
+# =========================
+# TypeScript
+# =========================
+*.tsbuildinfo
+
+# =========================
+# Prisma
+# =========================
+# Generated client is in node_modules (already ignored)
+# Keep schema.prisma and migrations in git
+
+# =========================
+# ESLint / Prettier
+# =========================
+.eslintcache
+.prettierignore
 
 # =========================
 # Database Files
