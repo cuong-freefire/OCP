@@ -20,22 +20,23 @@ model Role {
 }
 
 model User {
-  id                 String                 @id @default(uuid()) @db.Char(36)
-  roleId             String                 @map("role_id") @db.Char(36)
-  role               Role                   @relation(fields: [roleId], references: [id])
-  name               String                 @db.VarChar(255)
-  email              String                 @unique @db.VarChar(255)
-  avatarUrl          String?                @map("avatar_url") @db.VarChar(500)
-  passwordHash       String?                @map("password_hash") @db.VarChar(255)
-  emailVerified      Boolean                @default(false) @map("email_verified")
-  status             String                 @default("pending_verification") @db.VarChar(50)
-  deletedAt          DateTime?              @map("deleted_at")
-  refreshTokens      RefreshToken[]
-  emailVerifications EmailVerification[]
+  id                  String            @id @default(uuid()) @db.Char(36)
+  roleId              String            @map("role_id") @db.Char(36)
+  role                Role              @relation(fields: [roleId], references: [id])
+  name                String            @db.VarChar(255)
+  email               String            @unique @db.VarChar(255)
+  avatarUrl           String?           @map("avatar_url") @db.VarChar(500)
+  passwordHash        String?           @map("password_hash") @db.VarChar(255)
+  emailVerified       Boolean           @default(false) @map("email_verified")
+  status              String            @default("pending_verification") @db.VarChar(50)
+  deletedAt           DateTime?         @map("deleted_at")
+  refreshTokens       RefreshToken[]
+  emailVerifications  EmailVerification[]
   passwordResetTokens PasswordResetToken[]
-  oauthAccounts      OAuthAccount[]
-  createdAt          DateTime               @default(now()) @map("created_at")
-  updatedAt          DateTime               @updatedAt @map("updated_at")
+  oauthAccounts       OAuthAccount[]
+  quizSubmissions     QuizSubmission[]
+  createdAt           DateTime          @default(now()) @map("created_at")
+  updatedAt           DateTime          @updatedAt @map("updated_at")
 
   @@index([roleId, status], map: "idx_users_role_status")
   @@map("users")
@@ -106,4 +107,60 @@ model PasswordResetToken {
   @@index([userId, expiresAt], map: "idx_password_reset_tokens_user")
   @@index([userId, lastSentAt], map: "idx_password_reset_tokens_resend")
   @@map("password_reset_tokens")
+}
+
+model Quiz {
+  id               String           @id @default(uuid()) @db.Char(36)
+  courseId         String           @map("course_id") @db.Char(36)
+  lessonId         String?          @map("lesson_id") @db.Char(36)
+  title            String           @db.VarChar(255)
+  description      String?          @db.Text
+  timeLimitMinutes Int?             @map("time_limit_minutes")
+  passingScore     Int              @default(70) @map("passing_score")
+  status           String           @default("active") @db.VarChar(50)
+  questions        QuizQuestion[]
+  submissions      QuizSubmission[]
+  createdAt        DateTime         @default(now()) @map("created_at")
+  updatedAt        DateTime         @updatedAt @map("updated_at")
+
+  @@index([courseId, status], map: "idx_quizzes_course_status")
+  @@index([lessonId], map: "idx_quizzes_lesson")
+  @@map("quizzes")
+}
+
+model QuizQuestion {
+  id            String   @id @default(uuid()) @db.Char(36)
+  quizId        String   @map("quiz_id") @db.Char(36)
+  quiz          Quiz     @relation(fields: [quizId], references: [id])
+  questionText  String   @map("question_text") @db.Text
+  questionType  String   @map("question_type") @db.VarChar(50)
+  options       Json
+  correctAnswer Json     @map("correct_answer")
+  explanation   String?  @db.Text
+  points        Int      @default(1)
+  order         Int      @default(0)
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  @@index([quizId, order], map: "idx_quiz_questions_quiz_order")
+  @@map("quiz_questions")
+}
+
+model QuizSubmission {
+  id          String   @id @default(uuid()) @db.Char(36)
+  userId      String   @map("user_id") @db.Char(36)
+  user        User     @relation(fields: [userId], references: [id])
+  quizId      String   @map("quiz_id") @db.Char(36)
+  quiz        Quiz     @relation(fields: [quizId], references: [id])
+  answers     Json
+  score       Int      @default(0)
+  maxScore    Int      @default(0) @map("max_score")
+  passed      Boolean  @default(false)
+  startedAt   DateTime @map("started_at")
+  submittedAt DateTime @map("submitted_at")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@index([userId, quizId, submittedAt], map: "idx_quiz_submissions_user_quiz")
+  @@index([quizId, submittedAt], map: "idx_quiz_submissions_quiz")
+  @@map("quiz_submissions")
 }

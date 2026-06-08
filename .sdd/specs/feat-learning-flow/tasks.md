@@ -1,393 +1,287 @@
-# Feature Tasks - Learning Flow
+# Tasks: feat-learning-flow
 
-## Feature Information
+**Input**: Design documents from `.sdd/specs/feat-learning-flow/`
 
-| Field          | Value               |
-| -------------- | ------------------- |
-| Feature Name   | Learning Flow       |
-| Module         | Learning + Progress |
-| Feature Folder | feat-learning-flow  |
-| Priority       | MVP                 |
-| Status         | Todo                |
+**Prerequisites**: plan.md, spec.md, context.md
 
----
+**Tests**: Tests are required by the project rules for new service/business logic and changed endpoints. Backend tests use `node:test`, `assert`, and `supertest`; frontend source-rule tests use `node:test` if frontend Learning API code is implemented.
 
-# 1. Database Tasks
+**Organization**: Tasks are grouped by user story so each story can be implemented and tested as an independently useful increment after shared foundations are complete.
 
-## 1.1 lesson_progress Table
+## Phase 1: Setup (Shared Infrastructure)
 
-* [ ] Create `lesson_progress` table
-* [ ] Add `id` as UUID primary key
-* [ ] Add `userId` foreign key
-* [ ] Add `lessonId` foreign key
-* [ ] Add `completed` boolean field
-* [ ] Add `completedAt` field
-* [ ] Add `createdAt`
-* [ ] Add `updatedAt`
-* [ ] Add unique constraint `(userId, lessonId)`
-* [ ] Add indexes for:
+**Purpose**: Prepare Learning Flow docs, directories, and shared file locations without implementing behavior.
 
-  * `userId`
-  * `lessonId`
+- [ ] T001 Create or update Learning design artifact placeholders in `.sdd/specs/feat-learning-flow/research.md`, `.sdd/specs/feat-learning-flow/data-model.md`, `.sdd/specs/feat-learning-flow/quickstart.md`, and `.sdd/specs/feat-learning-flow/contracts/learning-api.openapi.yaml`
+- [ ] T002 [P] Create backend Learning source directories in `backend/src/api`, `backend/src/controllers`, `backend/src/services`, `backend/src/repositories`, and `backend/src/validators`
+- [ ] T003 [P] Create backend Learning test directories in `backend/tests/learning`, `backend/tests/fixtures`, and `backend/tests/helpers`
+- [ ] T004 [P] Create frontend Learning directories in `frontend/src/api`, `frontend/src/pages/learner`, `frontend/src/components/learning`, `frontend/src/hooks`, and `frontend/tests/learning`
+- [ ] T005 [P] Review existing Auth middleware and response helper exports in `backend/src/middlewares/auth.middleware.js` and `backend/src/utils/response.util.js` for reuse by Learning routes
+- [ ] T006 [P] Review existing Course and Enrollment/Access service contracts with manual `rg` search and record accepted integration names in `.sdd/specs/feat-learning-flow/research.md`
 
 ---
 
-## 1.2 course_progress Table
+## Phase 2: Foundational (Blocking Prerequisites)
 
-* [ ] Create `course_progress` table
-* [ ] Add `id` as UUID primary key
-* [ ] Add `userId` foreign key
-* [ ] Add `courseId` foreign key
-* [ ] Add `progressPercentage`
-* [ ] Add `completedLessons`
-* [ ] Add `totalLessons`
-* [ ] Add `isCompleted`
-* [ ] Add `completedAt`
-* [ ] Add `createdAt`
-* [ ] Add `updatedAt`
-* [ ] Add unique constraint `(userId, courseId)`
-* [ ] Add indexes for:
+**Purpose**: Shared Learning persistence, contracts, validators, and test helpers that must exist before user-story implementation.
 
-  * `userId`
-  * `courseId`
+**CRITICAL**: No user story work should begin until this phase is complete.
 
----
+- [ ] T007 Define or align Prisma models for `lesson_progress` and `course_progress` in `backend/prisma/schema.prisma`
+- [ ] T008 Create Learning progress database migration without editing generated migration history in `backend/prisma/migrations`
+- [ ] T009 [P] Define Learning data model details and state transitions in `.sdd/specs/feat-learning-flow/data-model.md`
+- [ ] T010 [P] Define protected Learning API contract in `.sdd/specs/feat-learning-flow/contracts/learning-api.openapi.yaml`
+- [ ] T011 [P] Define Learning quickstart smoke steps in `.sdd/specs/feat-learning-flow/quickstart.md`
+- [ ] T012 [P] Implement Learning route and progress request schemas in `backend/src/validators/learning.validator.js`
+- [ ] T013 [P] Implement Progress route and body schemas in `backend/src/validators/progress.validator.js`
+- [ ] T014 Implement Learning progress repository methods for `lesson_progress` in `backend/src/repositories/learning.repository.js`
+- [ ] T015 Implement course progress repository methods for `course_progress` in `backend/src/repositories/progress.repository.js`
+- [ ] T016 Implement Course access adapter around the approved Enrollment/Access contract in `backend/src/services/courseAccess.service.js`
+- [ ] T017 Implement Course content adapter around approved Course module contracts in `backend/src/services/courseContent.service.js`
+- [ ] T018 Implement Learning route registration shells in `backend/src/api/learning.routes.js` and `backend/src/api/progress.routes.js`
+- [ ] T019 Register Learning routes in the backend app bootstrap in `backend/src/app.js`
+- [ ] T020 [P] Implement Learning test app helper with authenticated learner fixtures in `backend/tests/helpers/learningTestApp.js`
+- [ ] T021 [P] Implement shared course/access/progress fixtures in `backend/tests/fixtures/learningFixtures.js`
 
-# 2. Backend Structure Tasks
-
-## 2.1 Module Setup
-
-* [ ] Create learning module
-* [ ] Create progress module
-* [ ] Configure module exports/imports
-* [ ] Setup dependency injection
+**Checkpoint**: Foundation ready. User-story implementation can start.
 
 ---
 
-## 2.2 Controller Setup
+## Phase 3: User Story 1 - Open Enrolled Course Learning View (Priority: P1) MVP
 
-* [ ] Create `LearningController`
-* [ ] Create `ProgressController`
-* [ ] Register routes
-* [ ] Setup authentication guards
+**Goal**: A signed-in learner with active course access can open one course learning view with ordered sections, lesson states, progress summary, and continue-learning target.
 
----
+**Independent Test**: Sign in as a learner with active access, open a course learning view, and verify structure, states, progress, continue-learning target, and safe rejection for no access.
 
-## 2.3 Service Setup
+### Tests for User Story 1
 
-* [ ] Create `LearningService`
-* [ ] Create `ProgressService`
-* [ ] Create `AccessValidationService`
-* [ ] Setup service dependencies
+- [ ] T022 [P] [US1] Add backend integration tests for enrolled course learning view in `backend/tests/learning/courseView.integration.test.js`
+- [ ] T023 [P] [US1] Add backend integration tests rejecting no-access paid course learning view in `backend/tests/learning/courseViewAccess.integration.test.js`
+- [ ] T024 [P] [US1] Add backend service tests for empty active lesson course progress in `backend/tests/learning/courseView.service.test.js`
+- [ ] T025 [P] [US1] Add backend service tests for continue-learning target in course view in `backend/tests/learning/continueLearning.service.test.js`
 
----
+### Implementation for User Story 1
 
-## 2.4 Repository/Data Access Setup
+- [ ] T026 [US1] Implement course learning view orchestration in `backend/src/services/learning.service.js`
+- [ ] T027 [US1] Implement lesson state calculation for `COMPLETED`, `IN_PROGRESS`, `LOCKED`, and `NOT_STARTED` in `backend/src/services/learning.service.js`
+- [ ] T028 [US1] Implement course progress summary read for course view in `backend/src/services/progress.service.js`
+- [ ] T029 [US1] Implement continue-learning target selection for course view in `backend/src/services/learning.service.js`
+- [ ] T030 [US1] Add course learning view controller handler in `backend/src/controllers/learning.controller.js`
+- [ ] T031 [US1] Add protected course learning view route with validation in `backend/src/api/learning.routes.js`
+- [ ] T032 [US1] Add Learning API method for course learning view with credentials in `frontend/src/api/learningApi.js`
 
-* [ ] Create lesson progress repository
-* [ ] Create course progress repository
-* [ ] Setup course queries
-* [ ] Setup lesson queries
-* [ ] Setup enrollment access queries
-
----
-
-# 3. Learning Dashboard Tasks
-
-## 3.1 Dashboard API
-
-* [ ] Implement `GET /learning/courses/:courseId`
-* [ ] Validate JWT authentication
-* [ ] Validate enrollment access
-* [ ] Fetch course structure
-* [ ] Fetch learner progress
-* [ ] Return sections and lessons
-* [ ] Return lesson states:
-
-  * COMPLETED
-  * IN_PROGRESS
-  * LOCKED
-  * NOT_STARTED
+**Checkpoint**: User Story 1 is fully functional and testable independently.
 
 ---
 
-## 3.2 Continue Learning
+## Phase 4: User Story 2 - View Lesson Content Securely (Priority: P1)
 
-* [ ] Implement continue learning logic
-* [ ] Find latest unfinished lesson
-* [ ] Validate lesson unlock state
-* [ ] Return current lesson information
+**Goal**: A learner receives full lesson content only when authenticated, authorized for the course, and allowed by lesson availability and lock rules.
 
----
+**Independent Test**: Request the same lesson as an authorized learner, a learner without access, and a learner requesting an inactive or locked lesson; only the authorized unlocked request returns protected content.
 
-# 4. Lesson Access Tasks
+### Tests for User Story 2
 
-## 4.1 Watch Lesson API
+- [ ] T033 [P] [US2] Add backend integration tests for authorized lesson content read in `backend/tests/learning/lessonRead.integration.test.js`
+- [ ] T034 [P] [US2] Add backend integration tests for no-access paid lesson rejection in `backend/tests/learning/lessonAccess.integration.test.js`
+- [ ] T035 [P] [US2] Add backend integration tests for inactive or deleted lesson rejection in `backend/tests/learning/lessonUnavailable.integration.test.js`
+- [ ] T036 [P] [US2] Add backend security tests that locked or unauthorized lessons omit protected content and video URL in `backend/tests/learning/lessonContentSecurity.test.js`
 
-* [ ] Implement `GET /learning/lessons/:lessonId`
-* [ ] Validate JWT authentication
-* [ ] Validate lesson existence
-* [ ] Validate course access
-* [ ] Validate lesson unlock state
-* [ ] Return lesson content
-* [ ] Return locked lesson state if needed
+### Implementation for User Story 2
 
----
+- [ ] T037 [US2] Implement lesson content access flow in `backend/src/services/learning.service.js`
+- [ ] T038 [US2] Implement safe locked or unavailable lesson response shaping in `backend/src/services/learning.service.js`
+- [ ] T039 [US2] Add lesson read controller handler in `backend/src/controllers/learning.controller.js`
+- [ ] T040 [US2] Add protected lesson read route with validation in `backend/src/api/learning.routes.js`
+- [ ] T041 [US2] Add Learning API method for lesson read with credentials in `frontend/src/api/learningApi.js`
 
-## 4.2 Lesson Content Protection
-
-* [ ] Prevent unauthorized paid lesson access
-* [ ] Hide locked lesson content
-* [ ] Support preview lesson access
-* [ ] Prevent frontend-only access validation
+**Checkpoint**: User Stories 1 and 2 both work independently for protected learning access.
 
 ---
 
-# 5. Progress Tracking Tasks
+## Phase 5: User Story 3 - Mark Lesson Progress And Update Course Progress (Priority: P1)
 
-## 5.1 Lesson Progress API
+**Goal**: A learner can mark their own available lesson in progress or completed, and the backend updates lesson progress plus course progress for that learner only.
 
-* [ ] Implement `PUT /progress/lesson`
-* [ ] Validate request body
-* [ ] Validate lesson existence
-* [ ] Validate learner ownership
-* [ ] Create/update lesson progress
-* [ ] Update completedAt timestamp
-* [ ] Prevent duplicate progress records
+**Independent Test**: Mark an available lesson completed, repeat the request, attempt cross-user and no-access updates, and verify idempotent lesson progress plus correct course progress.
 
----
+### Tests for User Story 3
 
-## 5.2 Course Progress Calculation
+- [ ] T042 [P] [US3] Add backend integration tests for lesson progress update in `backend/tests/learning/lessonProgress.integration.test.js`
+- [ ] T043 [P] [US3] Add backend service tests for idempotent repeated completion in `backend/tests/learning/progressIdempotency.service.test.js`
+- [ ] T044 [P] [US3] Add backend integration tests rejecting cross-user or frontend-supplied user id progress updates in `backend/tests/learning/progressOwnership.integration.test.js`
+- [ ] T045 [P] [US3] Add backend service tests for course progress calculation bounds in `backend/tests/learning/courseProgress.service.test.js`
 
-* [ ] Implement course progress calculation
-* [ ] Count completed lessons
-* [ ] Count total lessons
-* [ ] Calculate percentage
-* [ ] Update course_progress table
-* [ ] Update course completion state
+### Implementation for User Story 3
 
----
+- [ ] T046 [US3] Implement lesson progress state transitions in `backend/src/services/progress.service.js`
+- [ ] T047 [US3] Implement idempotent completion and first completion timestamp handling in `backend/src/services/progress.service.js`
+- [ ] T048 [US3] Implement course progress recalculation and synchronization in `backend/src/services/progress.service.js`
+- [ ] T049 [US3] Add lesson progress update controller handler in `backend/src/controllers/progress.controller.js`
+- [ ] T050 [US3] Add protected lesson progress update route with validation in `backend/src/api/progress.routes.js`
+- [ ] T051 [US3] Add Learning API method for lesson progress update with credentials in `frontend/src/api/learningApi.js`
 
-## 5.3 Course Progress API
-
-* [ ] Implement `GET /progress/course/:courseId`
-* [ ] Validate JWT authentication
-* [ ] Validate learner enrollment
-* [ ] Return course progress summary
+**Checkpoint**: User Story 3 works independently after protected access foundations.
 
 ---
 
-# 6. Sequential Learning Tasks
+## Phase 6: User Story 4 - Continue Learning From The Right Lesson (Priority: P2)
 
-## 6.1 Lesson Order Logic
+**Goal**: Learners can resume from the first available unfinished lesson, or see completed-course state when all required active lessons are complete.
 
-* [ ] Retrieve ordered lessons
-* [ ] Determine previous lesson
-* [ ] Determine next lesson
-* [ ] Validate unlock conditions
+**Independent Test**: Prepare learner progress for no completed lessons, partial completion, locked next lesson, and all completed lessons; verify continue-learning target or completed state.
 
----
+### Tests for User Story 4
 
-## 6.2 Locked Lesson Handling
+- [ ] T052 [P] [US4] Add backend service tests for no-progress continue-learning target in `backend/tests/learning/continueLearningNoProgress.service.test.js`
+- [ ] T053 [P] [US4] Add backend service tests for partial-progress continue-learning target in `backend/tests/learning/continueLearningPartial.service.test.js`
+- [ ] T054 [P] [US4] Add backend service tests for completed-course target absence in `backend/tests/learning/continueLearningComplete.service.test.js`
 
-* [ ] Prevent access to locked lessons
-* [ ] Return locked lesson metadata only
-* [ ] Prevent bypass through direct API calls
+### Implementation for User Story 4
 
----
+- [ ] T055 [US4] Refine continue-learning selector for no-progress, partial, locked, and completed states in `backend/src/services/learning.service.js`
+- [ ] T056 [US4] Include continue-learning data in course progress read responses in `backend/src/services/progress.service.js`
+- [ ] T057 [US4] Add course progress read controller handler in `backend/src/controllers/progress.controller.js`
+- [ ] T058 [US4] Add protected course progress read route with validation in `backend/src/api/progress.routes.js`
+- [ ] T059 [US4] Add Learning API method for course progress read with credentials in `frontend/src/api/learningApi.js`
 
-## 6.3 Unlock Next Lesson
-
-* [ ] Unlock next lesson after completion
-* [ ] Update dashboard lesson states
-* [ ] Handle edge case for last lesson
+**Checkpoint**: Continue Learning works independently for the current learner-course.
 
 ---
 
-# 7. Validation Tasks
+## Phase 7: User Story 5 - Enforce Sequential Lesson Locking When Enabled (Priority: P2)
 
-## 7.1 Request Validation
+**Goal**: Course-level sequential learning rules prevent learners from opening or updating later lessons before completing previous required active lessons.
 
-* [ ] Validate lessonId format
-* [ ] Validate courseId format
-* [ ] Validate progress request body
-* [ ] Reject invalid requests
+**Independent Test**: Enable sequential policy, request lesson two before lesson one completion, complete lesson one, then verify lesson two becomes available.
 
----
+### Tests for User Story 5
 
-## 7.2 Authentication Validation
+- [ ] T060 [P] [US5] Add backend service tests for first lesson unlocked by default in `backend/tests/learning/sequentialFirstLesson.service.test.js`
+- [ ] T061 [P] [US5] Add backend integration tests for locked next lesson content rejection in `backend/tests/learning/sequentialLessonAccess.integration.test.js`
+- [ ] T062 [P] [US5] Add backend integration tests for locked lesson progress update rejection in `backend/tests/learning/sequentialProgress.integration.test.js`
+- [ ] T063 [P] [US5] Add backend service tests ignoring inactive lessons in sequential previous/next calculation in `backend/tests/learning/sequentialInactiveLessons.service.test.js`
 
-* [ ] Validate JWT for all APIs
-* [ ] Reject unauthorized requests
-* [ ] Extract learner identity securely
+### Implementation for User Story 5
 
----
+- [ ] T064 [US5] Implement course-level sequential policy read through Course adapter in `backend/src/services/courseContent.service.js`
+- [ ] T065 [US5] Implement previous required active lesson lookup in `backend/src/services/learning.service.js`
+- [ ] T066 [US5] Enforce sequential lock checks for lesson content reads in `backend/src/services/learning.service.js`
+- [ ] T067 [US5] Enforce sequential lock checks for progress updates in `backend/src/services/progress.service.js`
+- [ ] T068 [US5] Surface safe locked lesson metadata in course view responses in `backend/src/services/learning.service.js`
 
-## 7.3 Access Validation
-
-* [ ] Validate enrollment access
-* [ ] Validate lesson ownership
-* [ ] Validate sequential unlock rules
+**Checkpoint**: Sequential locking is enforced server-side for reads and updates.
 
 ---
 
-# 8. Error Handling Tasks
+## Phase 8: User Story 6 - Preserve Module Boundaries For Learning (Priority: P3)
 
-## 8.1 Standard Error Responses
+**Goal**: Learning uses Auth identity, Course structure/content, and Enrollment/Access decisions through approved contracts without owning or directly querying other modules' data.
 
-* [ ] Implement consistent error response format
-* [ ] Handle 400 Bad Request
-* [ ] Handle 401 Unauthorized
-* [ ] Handle 403 Forbidden
-* [ ] Handle 404 Not Found
-* [ ] Handle 500 Internal Server Error
+**Independent Test**: Review service imports and source-rule tests to confirm Learning repositories only persist Learning progress and cross-module decisions go through adapters/contracts.
 
----
+### Tests for User Story 6
 
-## 8.2 Edge Case Handling
+- [ ] T069 [P] [US6] Add backend source-rule test preventing Prisma imports in Learning services/controllers in `backend/tests/learning/layeringRules.test.js`
+- [ ] T070 [P] [US6] Add backend source-rule test preventing direct Payment/Enrollment repository imports in Learning services in `backend/tests/learning/moduleBoundaryRules.test.js`
+- [ ] T071 [P] [US6] Add frontend source-rule test for credentialed Learning API calls and no Bearer/browser JWT storage in `frontend/tests/learning/learningApiSecurity.test.js`
 
-* [ ] Handle deleted lessons
-* [ ] Handle disabled courses
-* [ ] Handle empty courses
-* [ ] Handle missing progress records
-* [ ] Handle invalid lesson ordering
+### Implementation for User Story 6
 
----
+- [ ] T072 [US6] Document Learning module contract boundaries in `.sdd/specs/feat-learning-flow/quickstart.md`
+- [ ] T073 [US6] Ensure Learning services consume only adapter exports for Course and Enrollment/Access in `backend/src/services/learning.service.js`
+- [ ] T074 [US6] Ensure Learning repositories contain only progress persistence methods in `backend/src/repositories/learning.repository.js` and `backend/src/repositories/progress.repository.js`
+- [ ] T075 [US6] Ensure frontend Learning UI treats backend lesson states as display state only in `frontend/src/pages/learner/LearningCoursePage.jsx`
 
-# 9. Security Tasks
-
-## 9.1 Access Security
-
-* [ ] Validate all lesson access server-side
-* [ ] Prevent unauthorized content exposure
-* [ ] Prevent cross-user progress access
-* [ ] Prevent lesson unlock bypass
+**Checkpoint**: Learning module boundaries are enforced and documented.
 
 ---
 
-## 9.2 Data Security
+## Phase 9: Polish & Cross-Cutting Concerns
 
-* [ ] Return minimal required data only
-* [ ] Prevent sensitive data leakage
-* [ ] Validate ownership before updates
+**Purpose**: Final contract alignment, docs, test execution, and security hardening across all selected user stories.
 
----
-
-# 10. Integration Tasks
-
-## 10.1 Course Module Integration
-
-* [ ] Integrate course structure retrieval
-* [ ] Integrate lesson ordering
-* [ ] Integrate preview lesson logic
+- [ ] T076 [P] Update Learning OpenAPI contract examples after implementation in `.sdd/specs/feat-learning-flow/contracts/learning-api.openapi.yaml`
+- [ ] T077 [P] Update Learning data model notes after implementation in `.sdd/specs/feat-learning-flow/data-model.md`
+- [ ] T078 [P] Update Learning quickstart smoke commands after implementation in `.sdd/specs/feat-learning-flow/quickstart.md`
+- [ ] T079 [P] Add final secret/content leakage regression tests in `backend/tests/learning/contentLeakage.test.js`
+- [ ] T080 Run backend Learning tests and fix failures using `npm --prefix backend run test`
+- [ ] T081 Run frontend Learning source-rule tests and fix failures using `npm --prefix frontend run test`
+- [ ] T082 Run full project test command and fix in-scope failures using `npm test`
+- [ ] T083 Run build command and fix in-scope failures using `npm run build`
+- [ ] T084 Review implementation against `.sdd/specs/feat-learning-flow/spec.md` acceptance scenarios and update only in-scope generated docs if contracts changed
 
 ---
 
-## 10.2 Enrollment Module Integration
+## Dependencies & Execution Order
 
-* [ ] Integrate access validation contract
-* [ ] Validate learner enrollment
-* [ ] Handle enrollment edge cases
+### Phase Dependencies
 
----
+- **Setup (Phase 1)**: No dependencies.
+- **Foundational (Phase 2)**: Depends on Setup and blocks all user stories.
+- **User Stories 1, 2, and 3 (P1)**: Start after Foundational. US2 and US3 use shared access/progress foundations.
+- **User Stories 4 and 5 (P2)**: Start after Foundational. US4 depends on course view/progress semantics from US1 and US3. US5 affects US1, US2, and US3 behavior.
+- **User Story 6 (P3)**: Can start after Foundational but final validation depends on selected backend/frontend implementation files.
+- **Polish**: Depends on selected user stories being complete.
 
-## 10.3 Future Quiz Integration Preparation
+### User Story Dependencies
 
-* [ ] Prepare lesson completion hooks
-* [ ] Prepare quiz unlock support
+- **US1**: No dependency on other stories after Foundational. MVP.
+- **US2**: Depends on Foundational and can be tested with access fixtures independent of US1 UI.
+- **US3**: Depends on Foundational access and progress repository support.
+- **US4**: Depends on US1 course view and US3 progress semantics.
+- **US5**: Depends on Course adapter and affects US1, US2, and US3 behavior.
+- **US6**: Depends on concrete implementation files to validate module boundaries.
 
----
+### Parallel Opportunities
 
-## 10.4 Future Final Project Integration Preparation
+- Setup tasks marked `[P]` can run in parallel.
+- Foundational docs, validators, adapters, and test helpers marked `[P]` can run in parallel.
+- Tests within each user story marked `[P]` can run in parallel before implementation.
+- Frontend API/client tasks can run in parallel with backend implementation once contracts are stable.
+- US2 and US3 can proceed in parallel after Foundational if their shared service contracts are stable.
 
-* [ ] Prepare course completion checks
-* [ ] Prepare project eligibility checks
+## Parallel Example: User Story 1
 
----
+```text
+Task: T022 Add backend integration tests for enrolled course learning view
+Task: T023 Add backend integration tests rejecting no-access paid course learning view
+Task: T024 Add backend service tests for empty active lesson course progress
+Task: T025 Add backend service tests for continue-learning target in course view
+```
 
-# 11. Testing Tasks
+## Parallel Example: User Story 5
 
-## 11.1 Unit Tests
+```text
+Task: T060 Add backend service tests for first lesson unlocked by default
+Task: T061 Add backend integration tests for locked next lesson content rejection
+Task: T062 Add backend integration tests for locked lesson progress update rejection
+Task: T063 Add backend service tests ignoring inactive lessons in sequential previous/next calculation
+```
 
-* [ ] Test lesson unlock logic
-* [ ] Test course progress calculation
-* [ ] Test continue learning logic
-* [ ] Test access validation logic
+## Implementation Strategy
 
----
+### MVP First
 
-## 11.2 Integration Tests
+1. Complete Phase 1 setup.
+2. Complete Phase 2 foundational Learning infrastructure.
+3. Complete Phase 3 User Story 1.
+4. Stop and validate authenticated course learning view, no-access rejection, progress summary, and continue-learning target.
 
-* [ ] Test learning dashboard flow
-* [ ] Test lesson access flow
-* [ ] Test progress update flow
-* [ ] Test sequential learning flow
+### Incremental Delivery
 
----
+1. Add US2 for secure lesson content read.
+2. Add US3 for lesson progress updates and course progress synchronization.
+3. Add US4 for complete continue-learning edge cases.
+4. Add US5 for sequential locking.
+5. Add US6 for module-boundary source rules and frontend safety checks.
 
-## 11.3 Security Tests
+### Guardrails
 
-* [ ] Test unauthorized lesson access
-* [ ] Test locked lesson bypass attempts
-* [ ] Test cross-user progress modification
-* [ ] Test invalid JWT access
-
----
-
-# 12. Performance Tasks
-
-## 12.1 Query Optimization
-
-* [ ] Optimize lesson retrieval queries
-* [ ] Optimize progress queries
-* [ ] Add required indexes
-* [ ] Avoid unnecessary recalculation
-
----
-
-## 12.2 Scalability Preparation
-
-* [ ] Prepare dashboard pagination support
-* [ ] Prepare lazy loading support
-* [ ] Avoid N+1 query problems
-
----
-
-# 13. Documentation Tasks
-
-* [ ] Document API request/response examples
-* [ ] Document lesson unlock rules
-* [ ] Document progress calculation logic
-* [ ] Document integration contracts
-* [ ] Document error response format
-
----
-
-# 14. Final Acceptance Checklist
-
-## Functional
-
-* [ ] Learner can access enrolled course lessons
-* [ ] Learner cannot access locked lessons
-* [ ] Learner cannot access paid lessons without enrollment
-* [ ] Lesson progress updates correctly
-* [ ] Course progress updates correctly
-* [ ] Continue Learning works correctly
-
----
-
-## Security
-
-* [ ] All APIs require JWT
-* [ ] Backend validates enrollment access
-* [ ] Backend validates lesson ownership
-* [ ] Frontend cannot bypass lesson locking
-
----
-
-## Technical
-
-* [ ] APIs follow standardized response format
-* [ ] Database constraints work correctly
-* [ ] No duplicate progress records
-* [ ] Sequential lesson logic behaves correctly
+- Write story tests first and confirm they fail before implementation.
+- Do not import Prisma outside repositories.
+- Do not query Payment/Enrollment/Course tables directly from Learning services.
+- Do not add Bearer auth or browser JWT storage.
+- Do not accept frontend `userId`, `role`, `paymentStatus`, `enrollmentStatus`, or `courseAccess` as authority.
+- Do not return protected content for unauthorized, locked, inactive, or deleted lessons.
+- Do not implement payment, enrollment creation, course CRUD/content management, quiz, final project, mentor review, certificate, reports, notes, bookmarks, comments, realtime sync, or video playback tracking in this feature.

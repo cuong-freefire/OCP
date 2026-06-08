@@ -1,461 +1,106 @@
-# Feature Context - Learning Flow
-
-## Feature Information
-
-| Field             | Value               |
-| ----------------- | ------------------- |
-| Feature Name      | Learning Flow       |
-| Module            | Learning + Progress |
-| Feature Folder    | feat-learning-flow  |
-| Primary Actor     | Learner             |
-| Supporting Actors | Admin               |
-| Priority          | MVP                 |
-
----
-
-# 1. Business Context
-
-The Learning Flow feature represents the core learning experience of the Online Course Platform.
-
-After a learner successfully enrolls in a course, the system must provide a structured and secure learning environment where the learner can:
-
-* Access course lessons
-* Navigate learning content
-* Track learning progress
-* Continue unfinished learning
-* Follow learning sequence requirements
-
-This feature acts as the bridge between:
-
-* enrollment/access control
-* course content delivery
-* learning progress tracking
-* quiz and final project systems
-
-Without this feature, learners may enroll in courses but cannot properly consume educational content or maintain learning progress.
-
----
-
-# 2. Problem Statement
-
-The system must solve several important business and technical problems:
-
-## PS-01 Unauthorized Content Access
-
-Paid lesson content must not be accessible to users without valid enrollment.
-
-## PS-02 Learning Continuity
-
-Learners need the ability to continue learning from their latest unfinished lesson.
-
-## PS-03 Progress Tracking
-
-The platform must track learner progress accurately for:
-
-* user experience
-* reports
-* completion tracking
-* future certificate support
-
-## PS-04 Sequential Learning
-
-Some courses may require learners to complete lessons in order instead of skipping ahead.
-
-## PS-05 Cross-Module Coordination
-
-Learning Flow depends heavily on:
-
-* Course structure
-* Enrollment status
-* Authentication
-* Quiz eligibility
-* Final project eligibility
-
----
-
-# 3. Feature Goals
-
-## Primary Goals
-
-### Goal-01
-
-Allow enrolled learners to access course learning content securely.
-
-### Goal-02
-
-Provide structured lesson navigation using section and lesson ordering.
-
-### Goal-03
-
-Track lesson-level and course-level progress.
-
-### Goal-04
-
-Support sequential lesson unlocking when enabled.
-
-### Goal-05
-
-Provide a scalable learning foundation for future features.
-
----
-
-## Secondary Goals
-
-### Goal-06
-
-Prepare integration with quiz system.
-
-### Goal-07
-
-Prepare integration with final project submission.
-
-### Goal-08
-
-Provide progress data for reports and analytics.
-
----
-
-# 4. Actors
-
-## Learner
-
-Responsibilities:
-
-* Access enrolled courses
-* Learn lessons
-* Complete lessons
-* Continue learning
-* Track personal progress
-
-Permissions:
-
-* View own learning dashboard
-* Access lessons with valid enrollment
-* Update own learning progress
-
-Restrictions:
-
-* Cannot access another learner’s progress
-* Cannot bypass locked lessons
-* Cannot access paid content without enrollment
-
----
-
-## Admin
-
-Responsibilities:
-
-* Manage course content indirectly through Course Module
-
-Permissions:
-
-* Create course structure
-* Configure lesson order
-
-Restrictions:
-
-* Does not directly interact with learner progress flow
-
----
-
-# 5. Feature Scope
-
-## Included In Scope
-
-### Learning Dashboard
-
-* Course overview
-* Progress display
-* Continue learning
-
-### Lesson Access
-
-* View lesson content
-* Access validation
-* Locked lesson handling
-
-### Progress Tracking
-
-* Lesson completion
-* Course completion percentage
-
-### Sequential Learning
-
-* Unlock next lesson logic
-* Locked lesson management
-
----
-
-## Out of Scope
-
-### Video Playback Tracking
-
-The system does not track:
-
-* watch duration
-* playback percentage
-* video completion by playback
-
-### Real-Time Features
-
-No:
-
-* realtime sync
-* collaborative learning
-* live learning updates
-
-### Advanced Learning Features
-
-No:
-
-* notes
-* bookmarks
-* AI recommendations
-* adaptive learning
-* gamification
-
-### Certificate Generation
-
-Course completion certificates are handled separately if implemented later.
-
----
-
-# 6. Dependencies
-
----
-
-## Authentication Module
-
-Required For:
-
-* JWT validation
-* Learner identity
-* Authorization
-
-Dependency Type:
-Critical
-
-Failure Impact:
-Learning APIs become inaccessible.
-
----
-
-## Course Catalog Module
-
-Required For:
-
-* Course structure
-* Sections
-* Lessons
-* Lesson ordering
-* Preview lesson metadata
-
-Dependency Type:
-Critical
-
-Failure Impact:
-Learning content cannot be displayed properly.
-
----
-
-## Payment & Enrollment Module
-
-Required For:
-
-* Enrollment validation
-* Course access checking
-
-Contract:
-
-```ts id="qv7z5r"
-canAccessCourse(userId, courseId): boolean
-```
-
-Dependency Type:
-Critical
-
-Failure Impact:
-Unauthorized users may access paid content.
-
----
-
-## Quiz System
-
-Required For:
-
-* Future quiz integration
-* Lesson completion dependencies
-
-Dependency Type:
-Medium
-
-Failure Impact:
-Learning still works independently.
-
----
-
-## Final Project System
-
-Required For:
-
-* Final project eligibility
-* Course completion logic
-
-Dependency Type:
-Medium
-
-Failure Impact:
-Learning still works independently.
-
----
-
-# 7. Business Flow
-
-## Main Flow
-
-```text id="qmfjlwm"
-Learner Login
-    ↓
-Access My Courses
-    ↓
-Open Learning Dashboard
-    ↓
-View Sections & Lessons
-    ↓
-Open Lesson
-    ↓
-Backend Validates Enrollment
-    ↓
-Lesson Content Returned
-    ↓
-Learner Completes Lesson
-    ↓
-Progress Updated
-    ↓
-Next Lesson Unlocked
-```
-
----
-
-# 8. Sequential Learning Context
-
-Some courses may require strict lesson ordering.
-
-Example:
-
-* Lesson 2 cannot be opened until Lesson 1 is completed.
-* Lesson 3 remains locked until Lesson 2 is completed.
-
-This prevents learners from skipping foundational content.
-
-Sequential learning behavior must be controlled by backend validation rather than frontend UI logic.
-
----
-
-# 9. Security Context
-
-Learning content protection is one of the most important responsibilities of this feature.
-
-The system must ensure:
-
-* paid lesson content is protected
-* access validation occurs server-side
-* JWT is validated before lesson retrieval
-* learner progress ownership is enforced
-
-Frontend visibility alone is not considered secure access control.
-
----
-
-# 10. Data Ownership Context
-
-This feature owns:
-
-* lesson progress
-* course progress
-
-This feature does NOT own:
-
-* course metadata
-* lessons
-* sections
-* enrollment records
-
-Those belong to other modules.
-
----
-
-# 11. Future Extension Possibilities
-
-The Learning Flow feature is designed to support future expansion including:
-
-* certificate generation
-* learning analytics
-* video completion tracking
-* discussion/Q&A
-* AI recommendations
-* gamification systems
-* achievement badges
-* realtime synchronization
-* learning reminders
-
-Current architecture should avoid blocking future scalability.
-
----
-
-# 12. Risks & Concerns
-
-## Risk-01 Access Control Bugs
-
-Incorrect enrollment validation may expose paid content.
-
-Mitigation:
-
-* Centralized access service
-* Backend validation only
-
----
-
-## Risk-02 Progress Inconsistency
-
-Progress percentage may become incorrect if lesson counts change.
-
-Mitigation:
-
-* Recalculate progress carefully
-* Avoid storing redundant data unnecessarily
-
----
-
-## Risk-03 Sequential Lock Bypass
-
-Frontend-only locking may be bypassed.
-
-Mitigation:
-
-* Backend lesson unlock validation
-
----
-
-## Risk-04 Large Course Structures
-
-Courses with many lessons may impact dashboard performance.
-
-Mitigation:
-
-* Lazy loading
-* Pagination if needed
-
----
-
-# 13. Success Criteria
-
-The feature is considered successful when:
-
-* Enrolled learners can learn courses smoothly
-* Paid content remains protected
-* Lesson progress updates correctly
-* Course progress updates correctly
-* Sequential lesson unlocking works correctly
-* Learning dashboard reflects real learner state
-* Future modules can integrate cleanly with learning progress
+## 1. PROBLEM STATEMENT (Tuyen bo bai toan)
+
+Tinh nang `feat-learning-flow` can thiet lap trai nghiem hoc tap cot loi cho OCP sau khi learner da co quyen truy cap khoa hoc. Day la lop noi giua enrollment/access, cau truc course, noi dung lesson, tien do hoc tap, va cac module tuong lai nhu quiz, final project, mentor review, report va certificate.
+
+Nguoi hoc can co mot luong hoc ro rang: mo khoa hoc da enroll, xem section va lesson theo thu tu, mo lesson duoc phep hoc, cap nhat tien do lesson, xem tien do course, va tiep tuc hoc tu lesson phu hop nhat. Neu course yeu cau hoc tuan tu, learner khong duoc bo qua lesson truoc khi backend xac nhan dieu kien unlock.
+
+Tinh nang nay phai giai quyet cac rui ro nghiep vu quan trong:
+
+- Paid lesson content khong duoc lo cho user chua co access hop le.
+- Progress phai thuoc ve learner dang dang nhap, khong duoc cap nhat thay learner khac.
+- Continue learning phai dua tren tien do that va cau truc course hien tai, khong dua tren state tam thoi cua frontend.
+- Sequential learning neu duoc bat phai duoc enforce o backend, vi frontend lock/hidden button co the bi bypass.
+- Learning Flow phai dung contract cua Auth, Course va Enrollment/Access, khong tu doc payment hoac tu quyet dinh enrollment/access.
+
+Dau ra cua pha context nay chi la tai lieu boi canh tai `.sdd/specs/feat-learning-flow/context.md`. Khong trien khai code, khong tao endpoint, khong sua Prisma schema, khong tao migration, khong tao UI, va khong trien khai cac module ngoai Learning Flow.
+
+## 2. DOMAIN KNOWLEDGE (Kien thuc chuyen mon / Nghiep vu)
+
+- OCP la nen tang khoa hoc truc tuyen. Learning Flow chi bat dau sau khi user co identity dang tin cay va course access duoc xac nhan boi backend.
+- Backend la source of truth cho identity, role, account status, enrollment, course access, lesson unlock va progress ownership. Frontend chi ho tro dieu huong va hien thi UX.
+- Stack co dinh cua du an: backend NodeJS + JavaScript ESM + Express-style REST API, Prisma, MySQL; frontend React JSX + Bootstrap + Create React App; auth bang JWT trong httpOnly Cookie; validation bang Zod; package manager npm.
+- Backend phai theo layered architecture `Route -> Middleware -> Controller -> Service -> Repository -> Prisma/MySQL`. Controller khong chua business logic; service chua business logic; repository la tang duy nhat thao tac Prisma/MySQL.
+- Learning + Quiz + Final Project thuoc module Member 4 - Duc. Rieng Learning Flow so huu tien do hoc tap, nhung khong so huu user identity, course content, payment, order, enrollment, mentor review hoac report.
+- Auth + Email + Profile thuoc Member 1 - AnhND. Learning Flow phai dung backend-authenticated user tu Auth/session middleware va khong tu xu ly JWT hoac doc cookie o service rieng.
+- Course Catalog + Content thuoc Member 2 - Nam. Learning Flow can course, section, lesson, lesson order, lesson active/deleted state va preview metadata tu Course contract/module, khong tu dinh nghia lai content ownership.
+- Payment + Enrollment + Access thuoc Member 3 - CuongLH. Learning Flow phai dung course access contract, vi paid course chi unlock khi co enrollment hop le do backend tao sau payment thanh cong. Payment `PENDING` khong bao gio cap quyen hoc.
+- Course access contract chia se trong `share_context.md` la `canAccessCourse(userId, courseId) -> boolean`. Learning Flow la consumer cua contract nay.
+- Bang du lieu Learning Progress theo `DATABASE.md` gom:
+  - `lesson_progress`: luu tien do cua mot learner tren mot lesson, co `user_id`, `lesson_id`, `status`, `progress_percent`, `last_position_seconds`, `completed_at`, timestamps va unique `user_id + lesson_id`.
+  - `course_progress`: luu tong quan tien do cua mot learner tren mot course, co `user_id`, `course_id`, `completed_lessons`, `total_lessons`, `progress_percent`, `status`, `last_lesson_id`, `completed_at`, timestamps va unique `user_id + course_id`.
+- Lesson content thuoc Course module. Learning Flow chi quyet dinh learner hien tai co duoc nhan full content hay chi nhan safe locked/unavailable state hay khong.
+- Public course browsing va preview lesson cho guest/learner chua enroll thuoc Course module. Learning Flow khong bien protected learning behavior thanh public content API.
+- Lesson completion trong MVP la hanh dong ro rang cua learner. Video watch duration, playback percentage, auto-complete theo thoi luong xem va realtime sync khong thuoc scope hien tai.
+- Course progress phai tinh tu required active lessons trong cau truc course hien tai. Course co 0 active required lessons phai tra progress 0 de tranh chia cho 0 hoac danh dau complete sai.
+- Sequential learning la rule co the duoc bat/tat theo course policy. Khi bat, lesson dau tien duoc mo neu learner co access; lesson tiep theo chi mo sau khi previous required active lesson da completed boi chinh learner do.
+- Locked lesson co the xuat hien duoi dang metadata an toan de frontend hien thi navigation, nhung khong duoc tra protected content, protected video URL hoac body content.
+- Progress state se la nen cho quiz eligibility, final project eligibility, report va certificate trong tuong lai, nhung cac nghiep vu do phai co spec rieng.
+
+## 3. STAKEHOLDERS (Cac ben lien quan)
+
+- Learner: mo khoa hoc da enroll, xem bai hoc duoc phep hoc, cap nhat tien do cua minh, tiep tuc hoc tu lesson phu hop va xem course progress.
+- Guest: co the browse course/preview qua Course module, nhung khong thuoc protected Learning Flow neu chua dang nhap va chua co access.
+- Auth module: cung cap identity, role, account status va session validity dang tin cay cho protected learning behavior.
+- Course module: cung cap course structure, section/lesson order, active/deleted state, lesson metadata va protected lesson content theo contract duoc phe duyet.
+- Payment/Enrollment/Access module: la authority cho course access, enrollment state va unlock sau payment; Learning Flow khong tu doc payment hay enrollment table.
+- Learning service: chiu trach nhiem build learning view, tinh lesson state, enforce sequential lock, update progress va bao ve ownership cua learner hien tai.
+- Frontend Learning UI/API client: hien thi dashboard, lesson states, continue-learning action va progress feedback; moi request can cookie credentials; frontend khong phai access authority.
+- Mentor/Final Project module: ve sau co the dung progress/course completion de xac dinh eligibility nop/cham final project, nhung khong thuoc scope Learning Flow MVP.
+- Admin/Reports module: ve sau co the doc aggregate progress qua contract/report reader duoc duyet, nhung khong mutate du lieu Learning Flow.
+
+## 4. CONSTRAINTS (Cac rang buoc)
+
+- Khong doi stack: khong chuyen sang TypeScript, CommonJS, Vite/Next.js, ORM/database khac, Bearer-token auth, hoac auth/access pattern khac voi OCP.
+- JWT chi nam trong httpOnly Cookie. Frontend khong luu JWT trong `localStorage`/`sessionStorage` va khong gan `Authorization: Bearer <token>`.
+- Learning requests can protected session phai gui cookie credentials. Backend doc identity tu session da xac thuc, khong tu tin `userId`, `role`, `accountStatus`, `paymentStatus`, `enrollmentStatus` hoac `courseAccess` tu frontend.
+- User pending, blocked, soft-deleted, session het han, session revoked, hoac session khong hop le phai bi chan khoi protected learning behavior.
+- Learning Flow phai validate course access qua Enrollment/Access authority truoc khi tra protected course learning structure hoac paid lesson content.
+- Learning Flow khong duoc doc payment status truc tiep va khong duoc quyet dinh paid course unlock bang payment data rieng. Payment `PENDING`, failed payment, cancelled/refunded/inactive enrollment khong duoc unlock lesson.
+- Course, section, lesson, content va order thuoc Course module. Learning Flow chi su dung contract/query duoc phe duyet va khong so huu course content CRUD.
+- Request body, query va route params quan trong phai validate bang Zod hoac validator duoc duyet truoc khi business behavior chay.
+- Error response phai theo `{ success, message, code, details }` hoac helper tuong duong. Khong tra raw stack trace, raw SQL/Prisma error, secret, JWT, cookie value, password, payment internals hoac data cua learner khac.
+- Progress update phai chi ap dung cho authenticated learner. Neu request co user id cua learner khac, backend phai bo qua hoac reject theo contract va dung identity tu session.
+- `lesson_progress` phai unique theo `user_id + lesson_id`; repeat update phai idempotent, khong tao duplicate progress.
+- `course_progress` phai unique theo `user_id + course_id`; update lesson progress phai dong bo hoac tinh lai course progress cho learner-course tuong ung.
+- Progress percent phai nam trong khoang 0 den 100. Course co 0 required active lessons tra 0 percent.
+- Inactive/deleted lessons khong tinh vao required active lessons cho progress moi va sequential unlock moi; historical progress co the duoc giu de audit/continuity.
+- Locked lessons khong duoc tra protected body content/video URL. Metadata an toan neu tra ve phai du de UI hien thi trang thai lock, khong lo noi dung hoc phi.
+- Sequential learning neu disabled/khong co policy thi khong them dieu kien previous-lesson completion ngoai course access va lesson active state.
+- Learning Flow khong hard-delete progress data tru khi co spec duoc approve ro. Progress la du lieu nghiep vu co gia tri audit/continuity.
+- Frontend API calls phai di qua `frontend/src/api`, dung `REACT_APP_API_BASE_URL`, va gui cookie credentials theo auth contract.
+- Tests ve sau phai dung baseline da duyet: backend `node:test` + `assert` + `supertest`; frontend `node:test` cho API client/source-rule tests nhe. Khong them test framework khac neu chua co human approval.
+- Pham vi ngoai `feat-learning-flow`: auth registration/login, course CRUD/content management, payment/VNPAY, enrollment creation, quiz, final project, mentor review, certificate, report dashboards, notes, bookmarks, comments, video playback tracking, realtime sync va recommendation.
+
+## 5. ASSUMPTIONS (Cac gia dinh)
+
+- Learner da dang nhap bang Auth cookie hop le truoc khi dung protected Learning Flow.
+- Role `LEARNER` va account status duoc Auth module xac thuc truoc khi Learning service chay protected behavior.
+- Course access da duoc Payment/Enrollment/Access module xac dinh, bao gom free enrollment va paid enrollment sau khi backend verify payment thanh cong.
+- Course module co kha nang cung cap active course structure gom section order, lesson order, lesson active/deleted state va lesson metadata can thiet.
+- Sequential learning policy se duoc Course module hoac cau hinh course duoc phe duyet cung cap. Neu khong co policy, mac dinh khong bat sequential lock.
+- Required active lessons la nhung lesson dang active, khong deleted, thuoc active course structure va duoc tinh vao learning completion cua course.
+- Lesson completion trong MVP la explicit learner action; `last_position_seconds` va `progress_percent` co the duoc giu cho mo rong sau nhung khong duoc dung de auto-complete neu spec chua approve.
+- Continue-learning target duoc tinh tu course structure hien tai va learner progress hien tai; neu tat ca required active lessons completed thi course duoc xem la completed va khong can target lesson tiep theo.
+- Historical progress co the ton tai voi lesson da inactive/deleted, nhung khong buoc learner moi phai complete lesson khong con active.
+- Reports, quiz, final project va certificate co the doc progress state trong tuong lai qua contract duoc duyet, nhung khong them logic cua cac module do vao Learning Flow MVP.
+- Frontend co the hien thi lesson lock/progress/continue-learning, nhung moi access va progress ownership deu duoc backend enforce lai.
+
+## 6. OPEN QUESTIONS (Cac cau hoi con bo ngo)
+
+- Course module se expose sequential learning policy bang truong nao va scope nao: theo course, theo section, hay theo lesson dependency?
+- Course module se tra lesson content qua contract rieng cho Learning Flow hay Learning repository duoc phep doc lesson data trong pham vi course/lesson owner da duyet?
+- Lesson `IN_PROGRESS` duoc set khi learner mo lesson lan dau, khi cap nhat manual progress, hay chi khi frontend gui explicit progress event?
+- Khi learner reopen mot lesson da completed, co cho phep chuyen nguoc ve `IN_PROGRESS`/`NOT_STARTED` khong, hay completed la trang thai gan nhu final cho MVP?
+- Neu course content thay doi lam total required active lessons giam/tang, course progress da completed co can tinh lai va co the mat completed status khong?
+- Safe locked lesson metadata gom nhung field nao: title/order/status thoi, hay them duration/preview flag/section info?
+- Continue-learning target khi sequential enabled va learner co gap trong progress do lesson inactive/deleted se chon lesson nao?
+- Learning dashboard co can danh sach tat ca enrolled courses hay chi course learning view cho mot `courseId` trong MVP dau tien?
+
+## 7. IMPLEMENTATION ALIGNMENT NOTES (Cap nhat sau trien khai)
+
+- Spec hien tai cua `feat-learning-flow` tap trung vao protected learning course view, lesson access, lesson progress, course progress, continue learning va optional sequential locking.
+- Learning Flow phai goi Access contract cua Payment/Enrollment thay vi tu doc payment/order/enrollment de unlock paid content.
+- Preview/public course browsing khong thuoc Learning Flow; neu can preview cho guest, Course module/spec phai dinh nghia rieng.
+- Database design trong `DATABASE.md` su dung `lesson_progress.status`, `progress_percent`, `last_position_seconds` va `course_progress.status`, khong chi la boolean `completed`.
+- Future quiz/final project/certificate integration chi dung progress state lam input; eligibility va workflow chi tiet phai nam trong spec rieng.
+- GitNexus automated resources khong co san trong phien lam viec hien tai, nen impact analysis neu can se phai thuc hien bang doc tai lieu va search thu cong.

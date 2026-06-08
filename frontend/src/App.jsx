@@ -6,6 +6,10 @@ import HomePage from './pages/HomePage.jsx';
 import RoleDashboardPage from './pages/RoleDashboardPage.jsx';
 import AuthRoutes from './routes/AuthRoutes.jsx';
 import ProtectedRoute from './routes/ProtectedRoute.jsx';
+import QuizListPage from './pages/learner/QuizListPage.jsx';
+import QuizTakingPage from './pages/learner/QuizTakingPage.jsx';
+import QuizResultPage from './pages/learner/QuizResultPage.jsx';
+import QuizHistoryPage from './pages/learner/QuizHistoryPage.jsx';
 import './components/auth/authStyles.css';
 
 export default function App() {
@@ -20,6 +24,38 @@ export default function App() {
             element={
               <ProtectedRoute allowedRoles={['LEARNER']}>
                 <RoleDashboardPage role="LEARNER" />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/learner/quizzes"
+            element={
+              <ProtectedRoute allowedRoles={['LEARNER']}>
+                <QuizListPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/learner/quizzes/:quizId/take"
+            element={
+              <ProtectedRoute allowedRoles={['LEARNER']}>
+                <QuizTakingPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/learner/quizzes/:submissionId/result"
+            element={
+              <ProtectedRoute allowedRoles={['LEARNER']}>
+                <QuizResultPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/learner/quizzes/history"
+            element={
+              <ProtectedRoute allowedRoles={['LEARNER']}>
+                <QuizHistoryPage />
               </ProtectedRoute>
             }
           />
@@ -39,6 +75,10 @@ export default function App() {
               </ProtectedRoute>
             }
           />
+
+          <Route path="/debug/quizzes" element={<QuizListPage />} />
+          <Route path="/debug/history" element={<QuizHistoryPage />} />
+
           <Route path="*" element={<Navigate to="/auth/login" replace />} />
         </Routes>
       </BrowserRouter>
