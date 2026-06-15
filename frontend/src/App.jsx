@@ -10,6 +10,9 @@ import QuizListPage from './pages/learner/QuizListPage.jsx';
 import QuizTakingPage from './pages/learner/QuizTakingPage.jsx';
 import QuizResultPage from './pages/learner/QuizResultPage.jsx';
 import QuizHistoryPage from './pages/learner/QuizHistoryPage.jsx';
+import AdminQuizListPage from './pages/admin/AdminQuizListPage.jsx';
+import AdminQuizEditPage from './pages/admin/AdminQuizEditPage.jsx';
+import ProjectSubmissionPage from './pages/learner/ProjectSubmissionPage.jsx';
 import './components/auth/authStyles.css';
 
 export default function App() {
@@ -76,6 +79,35 @@ export default function App() {
             }
           />
 
+          {/* Learner: Final Project Submission */}
+          <Route
+            path="/learner/projects/submit"
+            element={
+              <ProtectedRoute allowedRoles={['LEARNER']}>
+                <ProjectSubmissionPage />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Mentor Quiz Routes */}
+          <Route
+            path="/mentor/quizzes"
+            element={
+              <ProtectedRoute allowedRoles={['MENTOR']}>
+                <AdminQuizListPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/mentor/quizzes/:quizId"
+            element={
+              <ProtectedRoute allowedRoles={['MENTOR']}>
+                <AdminQuizEditPage />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Debug routes for non-auth testing */}
           <Route path="/debug/quizzes" element={<QuizListPage />} />
           <Route path="/debug/history" element={<QuizHistoryPage />} />
 

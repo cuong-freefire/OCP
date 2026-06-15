@@ -3,6 +3,8 @@ import cors from 'cors';
 import express from 'express';
 import { createAuthRouter } from './api/auth.routes.js';
 import { createQuizRouter } from './api/quiz.routes.js';
+import { createAdminQuizRouter } from './api/adminQuiz.routes.js';
+import { createProjectSubmissionRouter } from './api/projectSubmission.routes.js';
 import { getAuthConfig } from './config/auth.config.js';
 import { createCorsOptions } from './config/cors.config.js';
 import { AuthRepository } from './repositories/auth.repository.js';
@@ -14,6 +16,8 @@ import { QuizRepository } from './repositories/quiz.repository.js';
 import { QuizService } from './services/quiz.service.js';
 import { CourseAccessService } from './services/courseAccess.service.js';
 import { ScoringService } from './services/scoring.service.js';
+import { ProjectSubmissionRepository } from './repositories/projectSubmission.repository.js';
+import { ProjectSubmissionService } from './services/projectSubmission.service.js';
 import { errorMiddleware } from './middlewares/error.middleware.js';
 import { sendSuccess } from './utils/response.util.js';
 
@@ -44,10 +48,19 @@ export function createApp(overrides = {}) {
       ? new QuizService({ repository: quizRepository, courseAccessService, scoringService, config })
       : null);
 
+  // Project submission module dependencies
+  const projectSubmissionRepository = overrides.projectSubmissionRepository || (prisma ? new ProjectSubmissionRepository(prisma) : null);
+  const projectSubmissionService =
+    overrides.projectSubmissionService ||
+    (projectSubmissionRepository
+      ? new ProjectSubmissionService({ repository: projectSubmissionRepository, config })
+      : null);
+
   const app = express();
   app.locals.authConfig = config;
   app.locals.authService = authService;
   app.locals.quizService = quizService;
+  app.locals.projectSubmissionService = projectSubmissionService;
   app.locals.prisma = prisma;
 
   app.use(cors(createCorsOptions(config)));
@@ -60,6 +73,10 @@ export function createApp(overrides = {}) {
   app.use(`${config.apiPrefix}/auth`, createAuthRouter());
   if (quizService) {
     app.use(`${config.apiPrefix}/quizzes`, createQuizRouter());
+    app.use(`${config.apiPrefix}/admin/quizzes`, createAdminQuizRouter());
+  }
+  if (projectSubmissionService) {
+    app.use(`${config.apiPrefix}/projects`, createProjectSubmissionRouter());
   }
   app.use(errorMiddleware);
 
