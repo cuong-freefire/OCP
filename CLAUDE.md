@@ -1,4 +1,4 @@
-# PROJECT_AGENTS.md - Online Course Platform (OCP)
+# CLAUDE.md - Online Course Platform (OCP)
 # Version: 5.0 | Updated: 2026-06-18 | Scope: 66 APIs, 5 Members, E1-E4 Architecture Fixes
 
 This file is the project-wide memory for agents working on OCP. It defines the shared architecture, stack, domain boundaries, conventions, and workflow rules that apply to every feature.
@@ -27,7 +27,7 @@ If a feature-local file exists, read it after this file and before implementatio
 Read first:
 
 1. `AGENTS.md` - mandatory project rules and safety constraints
-2. `PROJECT_AGENTS.md` - this project-wide context
+2. `CLAUDE.md` - this project-wide context
 3. `DATABASE.md` - schema ownership and database constraints
 4. `share_context.md` - project flow, module ownership, and cross-module contracts
 5. `API_CATALOG.md` - 66 APIs reference per member (A-E)
@@ -341,7 +341,7 @@ Frontend:
 Standard flow:
 
 ```text
-1. Read AGENTS.md, PROJECT_AGENTS.md, DATABASE.md, share_context.md
+1. Read AGENTS.md, CLAUDE.md, DATABASE.md, share_context.md
 2. Read feature-local PROJECT_AGENTS.md if present
 3. Read .sdd/specs/<feature>/context.md
 4. Read .sdd/specs/<feature>/spec.md
@@ -457,7 +457,7 @@ Root docs:
 
 ```text
 AGENTS.md
-PROJECT_AGENTS.md
+CLAUDE.md
 DATABASE.md
 constitution.md
 share_context.md

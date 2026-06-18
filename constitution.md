@@ -17,7 +17,7 @@ Tài liệu này định nghĩa các quy tắc nền mà toàn bộ thành viên
 4. **Pha 3 — Tasks**: AI đọc `PLAN.md` và `SPEC.md` để tạo `TASKS.md` dạng bảng task atomic, independent, verifiable.
 5. **Pha 4 — Implementation**: AI/code agent implement theo `TASKS.md`, mỗi task phải có done criteria rõ ràng.
 
-Trước mọi pha, AI agent phải đọc `agent/AGENTS.md` và `agent/PROJECT_AGENTS.md` để nắm tech stack, module ownership, forbidden patterns và Definition of Done toàn cục.
+Trước mọi pha, AI agent phải đọc `AGENTS.md` và `CLAUDE.md` để nắm tech stack, module ownership, forbidden patterns và Definition of Done toàn cục.
 
 ## 3. Chuẩn `CONTEXT.md`
 

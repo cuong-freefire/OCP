@@ -292,6 +292,6 @@ frontend/src/api/
 
 - **Database:** `DATABASE.md` (19 tables, ownership per member)
 - **Contracts:** `share_context.md` (Section 3 - Cross-Module, 6 contracts)
-- **Config:** `AGENTS.md`, `PROJECT_AGENTS.md`, `constitution.md`
+- **Config:** `AGENTS.md`, `CLAUDE.md`, `constitution.md`
 
 **Last Updated:** 2026-06-18 | **Scope:** 66 APIs + All Error Fixes (E1-E4)
