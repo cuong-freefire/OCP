@@ -1,0 +1,10 @@
+{"event": "step_started", "step_id": "context", "type": "prompt", "timestamp": "2026-06-02T13:23:55.167488+00:00"}
+{"event": "step_completed", "step_id": "context", "status": "failed", "timestamp": "2026-06-02T13:23:57.327280+00:00"}
+{"event": "step_failed", "step_id": "context", "error": "Prompt exited with code 1", "timestamp": "2026-06-02T13:23:57.328204+00:00"}
+{"event": "workflow_finished", "status": "failed", "timestamp": "2026-06-02T13:23:57.330453+00:00"}
+{"event": "step_started", "step_id": "context", "type": "prompt", "timestamp": "2026-06-02T13:33:09.589933+00:00"}
+{"event": "step_completed", "step_id": "context", "status": "completed", "timestamp": "2026-06-02T13:38:49.688881+00:00"}
+{"event": "step_started", "step_id": "specify", "type": "command", "timestamp": "2026-06-02T13:38:49.704269+00:00"}
+{"event": "step_completed", "step_id": "specify", "status": "failed", "timestamp": "2026-06-02T13:43:25.193305+00:00"}
+{"event": "step_failed", "step_id": "specify", "error": "Command exited with code 101", "timestamp": "2026-06-02T13:43:25.194463+00:00"}
+{"event": "workflow_finished", "status": "failed", "timestamp": "2026-06-02T13:43:25.197346+00:00"}

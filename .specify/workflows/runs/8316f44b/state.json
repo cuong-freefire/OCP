@@ -1,0 +1,25 @@
+{
+  "run_id": "8316f44b",
+  "workflow_id": "feat-auth",
+  "status": "failed",
+  "current_step_index": 0,
+  "current_step_id": "context",
+  "step_results": {
+    "context": {
+      "integration": "codex",
+      "model": null,
+      "options": {},
+      "input": {},
+      "output": {
+        "prompt": "Create the feature context document at .sdd/specs/001-auth/context.md for feat-auth.\n\nYou MUST read these files before writing context:\n- DATABASE.md\n- AGENTS.md\n- PROJECT_AGENTS.md\n\nUse the OCP project rules from those files as binding constraints.\nContext document MUST use these sections exactly:\n1. PROBLEM STATEMENT\n2. DOMAIN KNOWLEDGE\n3. STAKEHOLDERS\n4. CONSTRAINTS\n5. ASSUMPTIONS\n6. OPEN QUESTIONS\n\nFeature scope:\nBuild the OCP authentication feature with local email/password auth, email OTP verification, Google OAuth login/linking, JWT httpOnly cookie session, bcrypt password hashing, local-account password reset, authenticated set-password for Google-only users, profile access, role-aware backend authorization, blocked/deleted user rejection, and frontend withCredentials support. Backend remains the source of truth. Do not use Bearer auth, localStorage JWT, frontend role authority, raw OAuth token storage, or user-entered Google credentials.\n\nInclude these auth constraints:\n- JWT is stored only in httpOnly Cookie.\n- Backend reads auth token from req.cookies.\n- Frontend sends credentials with withCredentials: true.\n- Local auth uses bcrypt and users.password_hash.\n- Google OAuth maps users through oauth_accounts.provider = GOOGLE and provider_user_id = Google sub.\n- Do not store Google id_token, access_token, or refresh_token in database or logs.\n- Local registration verifies email with a six-digit OTP, not a user-facing raw token/link.\n- Verification OTP expires after 10 minutes, allows at most 5 failed attempts, and resend uses a 60-second cooldown.\n- Email delivery uses Nodemailer SMTP; app startup can continue without SMTP config, but registration/reset email sends fail safely.\n- Google login UI never asks users to type or paste raw OAuth credentials; missing Google config shows a safe not-configured state.\n- Do not trust frontend-sent email, role, providerUserId, amount, payment status, or course access.\n- User blocked/deleted status must reject local and Google login.\n- Payment provider is separate from identity provider: payments.provider = VNPAY, oauth_accounts.provider = GOOGLE.\n\nDo not implement code. Only create or update context.md.\n",
+        "integration": "codex",
+        "model": null,
+        "exit_code": 1,
+        "dispatched": false
+      },
+      "status": "failed"
+    }
+  },
+  "created_at": "2026-06-01T04:46:12.870138+00:00",
+  "updated_at": "2026-06-01T04:46:12.899708+00:00"
+}

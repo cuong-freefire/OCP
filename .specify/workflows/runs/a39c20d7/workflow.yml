@@ -1,0 +1,229 @@
+schema_version: '1.0'
+workflow:
+  id: feat-profile
+  name: "Workflow T\xEDnh n\u0103ng H\u1ED3 s\u01A1 ng\u01B0\u1EDDi d\xF9ng (Profile)"
+  version: 1.0.0
+  author: "\u0110\u1ED9i ng\u0169 OCP"
+  description: "T\u1EA1o t\xE0i li\u1EC7u b\u1ED1i c\u1EA3nh profile, sau \u0111\xF3\
+    \ ch\u1EA1y c\xE1c l\u1EC7nh \u0111\u1EB7c t\u1EA3 (specify), l\u1EADp k\u1EBF\
+    \ ho\u1EA1ch (plan) v\xE0 t\u1EA1o nhi\u1EC7m v\u1EE5 (tasks) c\u1EE7a Speckit\
+    \ cho Profile MVP."
+  integration: auto
+requires:
+  speckit_version: '>=0.8.18'
+  integrations:
+    any:
+    - codex
+    - claude
+    - copilot
+    - gemini
+inputs:
+  feature_dir:
+    type: string
+    default: .sdd/specs/002-feat-profile
+    prompt: "Th\u01B0 m\u1EE5c l\u01B0u tr\u1EEF c\xE1c t\xE0i li\u1EC7u (artifacts)\
+      \ c\u1EE7a t\xEDnh n\u0103ng profile"
+  integration:
+    type: string
+    default: auto
+    prompt: "T\xEDch h\u1EE3p s\u1EBD s\u1EED d\u1EE5ng; 'auto' ngh\u0129a l\xE0 d\xF9\
+      ng t\xEDch h\u1EE3p \u0111\xE3 \u0111\u01B0\u1EE3c kh\u1EDFi t\u1EA1o c\u1EE7\
+      a d\u1EF1 \xE1n"
+  feature:
+    type: string
+    default: "X\xE2y d\u1EF1ng t\xEDnh n\u0103ng Profile MVP cho OCP. Backend d\xF9\
+      ng API chung theo ng\u01B0\u1EDDi d\xF9ng hi\u1EC7n t\u1EA1i g\u1ED3m GET /api/profile,\
+      \ PATCH /api/profile, PATCH /api/profile/password; c\xE1c API n\xE0y l\u1EA5\
+      y user hi\u1EC7n t\u1EA1i t\u1EEB Auth middleware req.user v\xE0 kh\xF4ng nh\u1EAD\
+      n userId/role/status t\u1EEB frontend. Frontend scope \u0111\u1EA7u ti\xEAn\
+      \ l\xE0 trang learner profile t\u1EA1i /learner/profile; sau n\xE0y mentor/admin\
+      \ profile s\u1EBD reuse c\xF9ng core Profile API v\xE0 th\xEAm panel ri\xEA\
+      ng theo module. Ng\u01B0\u1EDDi d\xF9ng c\xF3 th\u1EC3 \u0111\u1ED5i t\xEAn\
+      \ v\xE0 avatar. Avatar upload \u0111i qua backend, backend d\xF9ng Cloudinary\
+      \ credentials t\u1EEB backend env, kh\xF4ng g\u1ECDi Cloudinary tr\u1EF1c ti\u1EBF\
+      p t\u1EEB frontend, l\u01B0u users.avatar_url v\xE0 users.avatar_public_id,\
+      \ v\xE0 khi \u0111\u1ED5i avatar ph\u1EA3i x\xF3a avatar c\u0169 tr\xEAn Cloudinary\
+      \ b\u1EB1ng public id. Ng\u01B0\u1EDDi d\xF9ng c\xF3 th\u1EC3 t\u1EA1o ho\u1EB7\
+      c \u0111\u1ED5i m\u1EADt kh\u1EA9u: n\u1EBFu hasLocalPassword=false th\xEC hi\u1EC7\
+      n newPassword/confirmPassword \u0111\u1EC3 t\u1EA1o m\u1EADt kh\u1EA9u \u0111\
+      \u1EA7u ti\xEAn cho Google-only user; n\u1EBFu hasLocalPassword=true th\xEC\
+      \ hi\u1EC7n currentPassword/newPassword/confirmPassword, validate newPassword\
+      \ tr\xF9ng confirmPassword, newPassword kh\xF4ng tr\xF9ng currentPassword, v\xE0\
+      \ backend ki\u1EC3m tra currentPassword b\u1EB1ng bcrypt. Frontend v\xE0 backend\
+      \ validate b\u1EB1ng Zod cho field quan tr\u1ECDng, frontend th\xF4ng b\xE1\
+      o b\u1EB1ng React Toastify, backend tr\u1EA3 response chu\u1EA9n v\xE0 kh\xF4\
+      ng leak password hash, Cloudinary secret, avatar_public_id, raw Prisma/SQL error,\
+      \ JWT ho\u1EB7c cookie value."
+    prompt: "M\xF4 t\u1EA3 t\xEDnh n\u0103ng H\u1ED3 s\u01A1 ng\u01B0\u1EDDi d\xF9\
+      ng (Profile)"
+steps:
+- id: context
+  type: prompt
+  integration: '{{ inputs.integration }}'
+  prompt: "T\u1EA1o t\xE0i li\u1EC7u b\u1ED1i c\u1EA3nh t\xEDnh n\u0103ng (feature\
+    \ context) t\u1EA1i \u0111\u01B0\u1EDDng d\u1EABn {{ inputs.feature_dir }}/context.md\
+    \ cho t\xEDnh n\u0103ng feat-profile.\n\nB\u1EA1n B\u1EAET BU\u1ED8C ph\u1EA3\
+    i \u0111\u1ECDc c\xE1c file sau tr\u01B0\u1EDBc khi vi\u1EBFt t\xE0i li\u1EC7\
+    u b\u1ED1i c\u1EA3nh:\n- DATABASE.md\n- AGENTS.md\n- PROJECT_AGENTS.md\n- .sdd/specs/001-feat-auth/PROJECT_AGENTS.md\n\
+    - .sdd/specs/001-feat-auth/contracts/auth-api.openapi.yaml\n- {{ inputs.feature_dir\
+    \ }}/PROJECT_AGENTS.md\n- frontend/DESIGN.md\n- backend/.env.example\n- frontend/.env.example\n\
+    \nKh\xF4ng \u0111\u01B0\u1EE3c \u0111\u1ECDc ho\u1EB7c in gi\xE1 tr\u1ECB th\u1EAD\
+    t trong backend/.env ho\u1EB7c frontend/.env.\n\nS\u1EED d\u1EE5ng c\xE1c quy\
+    \ t\u1EAFc c\u1EE7a d\u1EF1 \xE1n OCP t\u1EEB c\xE1c file tr\xEAn nh\u01B0 c\xE1\
+    c r\xE0ng bu\u1ED9c b\u1EAFt bu\u1ED9c.\nT\xE0i li\u1EC7u b\u1ED1i c\u1EA3nh B\u1EAE\
+    T BU\u1ED8C ph\u1EA3i s\u1EED d\u1EE5ng ch\xEDnh x\xE1c c\xE1c ph\u1EA7n sau:\n\
+    1. PROBLEM STATEMENT (Tuy\xEAn b\u1ED1 b\xE0i to\xE1n)\n2. DOMAIN KNOWLEDGE (Ki\u1EBF\
+    n th\u1EE9c chuy\xEAn m\xF4n / Nghi\u1EC7p v\u1EE5)\n3. STAKEHOLDERS (C\xE1c b\xEA\
+    n li\xEAn quan)\n4. CONSTRAINTS (C\xE1c r\xE0ng bu\u1ED9c)\n5. ASSUMPTIONS (C\xE1\
+    c gi\u1EA3 \u0111\u1ECBnh)\n6. OPEN QUESTIONS (C\xE1c c\xE2u h\u1ECFi c\xF2n b\u1ECF\
+    \ ng\u1ECF)\n\nPh\u1EA1m vi t\xEDnh n\u0103ng:\n{{ inputs.feature }}\n\nBao g\u1ED3\
+    m c\xE1c r\xE0ng bu\u1ED9c Profile sau:\n- Scope frontend \u0111\u1EA7u ti\xEA\
+    n l\xE0 `/learner/profile`.\n- Backend API chung cho profile ph\u1EA3i l\xE0 role-neutral:\
+    \ `GET /api/profile`, `PATCH /api/profile`, `PATCH /api/profile/password`.\n-\
+    \ Backend l\u1EA5y user hi\u1EC7n t\u1EA1i t\u1EEB Auth middleware v\xE0 `req.user.id`;\
+    \ frontend kh\xF4ng \u0111\u01B0\u1EE3c g\u1EEDi ho\u1EB7c quy\u1EBFt \u0111\u1ECB\
+    nh `userId`, `role`, `status`, `emailVerified` ho\u1EB7c `hasLocalPassword`.\n\
+    - Profile chung ch\u1EC9 x\u1EED l\xFD name, avatar v\xE0 password c\u1EE7a ch\xED\
+    nh user hi\u1EC7n t\u1EA1i.\n- C\xE1c d\u1EEF li\u1EC7u role-specific nh\u01B0\
+    \ learner certificates ho\u1EB7c mentor assigned courses kh\xF4ng thu\u1ED9c scope\
+    \ Profile MVP; sau n\xE0y ph\u1EA3i \u0111i qua module owner/API ri\xEAng.\n-\
+    \ Avatar upload ph\u1EA3i \u0111i qua backend; frontend kh\xF4ng g\u1ECDi Cloudinary\
+    \ tr\u1EF1c ti\u1EBFp.\n- Backend d\xF9ng Cloudinary credentials t\u1EEB `backend/.env.example`:\
+    \ `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`.\n- Kh\xF4\
+    ng \u0111\u01B0a Cloudinary secret v\xE0o frontend env/source.\n- Khi \u0111\u1ED5\
+    i avatar, backend l\u01B0u URL v\xE0o `users.avatar_url` v\xE0 public id v\xE0\
+    o `users.avatar_public_id`; c\u1EA7n t\u1EA1o migration n\u1EBFu field ch\u01B0\
+    a t\u1ED3n t\u1EA1i.\n- Khi thay avatar, backend ph\u1EA3i x\xF3a avatar c\u0169\
+    \ tr\xEAn Cloudinary b\u1EB1ng `avatar_public_id`.\n- `avatar_public_id` l\xE0\
+    \ metadata backend-only, kh\xF4ng tr\u1EA3 v\u1EC1 frontend tr\u1EEB khi spec\
+    \ sau n\xE0y c\xF3 l\xFD do r\xF5.\n- Password flow d\u1EF1a v\xE0o `hasLocalPassword`:\
+    \ n\u1EBFu false th\xEC t\u1EA1o password \u0111\u1EA7u ti\xEAn b\u1EB1ng `newPassword`\
+    \ v\xE0 `confirmPassword`; n\u1EBFu true th\xEC \u0111\u1ED5i m\u1EADt kh\u1EA9\
+    u b\u1EB1ng `currentPassword`, `newPassword`, `confirmPassword`.\n- Frontend v\xE0\
+    \ backend validate `newPassword === confirmPassword`.\n- Khi c\xF3 `currentPassword`,\
+    \ frontend v\xE0 backend validate `newPassword !== currentPassword`.\n- Backend\
+    \ ph\u1EA3i ki\u1EC3m tra `currentPassword` \u0111\xFAng b\u1EB1ng bcrypt tr\u01B0\
+    \u1EDBc khi \u0111\u1ED5i m\u1EADt kh\u1EA9u cho user \u0111\xE3 c\xF3 password\
+    \ hash.\n- Kh\xF4ng log ho\u1EB7c tr\u1EA3 v\u1EC1 plaintext password, password\
+    \ hash, Cloudinary secret, JWT, cookie value, raw SQL/Prisma error, ho\u1EB7c\
+    \ stack trace.\n- Frontend th\xF4ng b\xE1o th\xE0nh c\xF4ng/l\u1ED7i recoverable\
+    \ b\u1EB1ng React Toastify v\u1EDBi copy ti\u1EBFng Vi\u1EC7t ng\u1EAFn g\u1ECD\
+    n.\n- Frontend API calls ph\u1EA3i \u0111i qua `frontend/src/api`, d\xF9ng credentials/cookie,\
+    \ kh\xF4ng Bearer token, kh\xF4ng JWT browser storage.\n- Backend ph\u1EA3i theo\
+    \ layering Route -> Middleware -> Controller -> Service -> Repository -> Prisma/MySQL;\
+    \ service/controller kh\xF4ng import Prisma.\n\nKh\xF4ng tri\u1EC3n khai code.\
+    \ Ch\u1EC9 t\u1EA1o m\u1EDBi ho\u1EB7c c\u1EADp nh\u1EADt file context.md.\n"
+- id: specify
+  command: speckit.specify
+  integration: '{{ inputs.integration }}'
+  input:
+    args: "SPECIFY_FEATURE_DIRECTORY={{ inputs.feature_dir }}\n\nS\u1EED d\u1EE5ng\
+      \ c\xFA ph\xE1p l\u1EC7nh m\u1EDBi nh\u1EA5t c\u1EE7a Speckit cho l\u1EC7nh\
+      \ speckit.specify.\n\nB\u1EA1n B\u1EAET BU\u1ED8C ph\u1EA3i \u0111\u1ECDc c\xE1\
+      c file sau tr\u01B0\u1EDBc khi t\u1EA1o file spec.md:\n- DATABASE.md\n- AGENTS.md\n\
+      - PROJECT_AGENTS.md\n- .sdd/specs/001-feat-auth/PROJECT_AGENTS.md\n- .sdd/specs/001-feat-auth/contracts/auth-api.openapi.yaml\n\
+      - {{ inputs.feature_dir }}/PROJECT_AGENTS.md\n- frontend/DESIGN.md\n- backend/.env.example\n\
+      - frontend/.env.example\n- {{ inputs.feature_dir }}/context.md\n\nT\u1EA1o \u0111\
+      \u1EB7c t\u1EA3 t\xEDnh n\u0103ng (feature specification) cho t\xEDnh n\u0103\
+      ng feat-profile.\n\nPh\u1EA1m vi t\xEDnh n\u0103ng:\n{{ inputs.feature }}\n\n\
+      H\xE0nh vi b\u1EAFt bu\u1ED9c:\n- Backend expose API chung: `GET /api/profile`,\
+      \ `PATCH /api/profile`, `PATCH /api/profile/password`.\n- Frontend route \u0111\
+      \u1EA7u ti\xEAn l\xE0 `/learner/profile`.\n- API profile d\xF9ng Auth middleware\
+      \ v\xE0 `req.user.id`; kh\xF4ng nh\u1EADn `userId`, `role`, `status`, `emailVerified`,\
+      \ `hasLocalPassword` t\u1EEB frontend.\n- `GET /api/profile` tr\u1EA3 safe profile/current-user\
+      \ data g\u1ED3m id, name, email, avatarUrl, role, roleName, status, emailVerified,\
+      \ hasLocalPassword.\n- `PATCH /api/profile` cho ph\xE9p update name v\xE0 avatar\
+      \ c\u1EE7a ch\xEDnh user hi\u1EC7n t\u1EA1i.\n- Avatar upload \u0111i qua backend\
+      \ t\u1EDBi Cloudinary. Frontend kh\xF4ng g\u1ECDi Cloudinary tr\u1EF1c ti\u1EBF\
+      p.\n- Backend \u0111\u1ECDc Cloudinary env names t\u1EEB backend env contract:\
+      \ `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`.\n\
+      - Backend l\u01B0u `users.avatar_url` v\xE0 `users.avatar_public_id`; n\u1EBF\
+      u schema ch\u01B0a c\xF3 `avatar_public_id` th\xEC spec ph\u1EA3i ghi r\xF5\
+      \ c\u1EA7n th\xEAm migration.\n- Khi thay avatar, backend ph\u1EA3i x\xF3a asset\
+      \ c\u0169 tr\xEAn Cloudinary b\u1EB1ng old `avatar_public_id`.\n- N\u1EBFu Cloudinary\
+      \ upload fail th\xEC kh\xF4ng update DB.\n- N\u1EBFu DB update fail sau upload\
+      \ th\xEC backend c\u1ED1 g\u1EAFng x\xF3a asset m\u1EDBi \u0111\u1EC3 tr\xE1\
+      nh orphan file.\n- N\u1EBFu x\xF3a avatar c\u0169 fail sau DB update th\xE0\
+      nh c\xF4ng th\xEC kh\xF4ng rollback avatar m\u1EDBi; log c\u1EA3nh b\xE1o sanitized\
+      \ kh\xF4ng ch\u1EE9a secret.\n- `PATCH /api/profile/password` d\xF9ng flow theo\
+      \ `hasLocalPassword`: Google-only user ch\u01B0a c\xF3 password d\xF9ng `newPassword`\
+      \ + `confirmPassword`; local user d\xF9ng `currentPassword` + `newPassword`\
+      \ + `confirmPassword`.\n- Zod validate frontend/backend cho password fields,\
+      \ confirm mismatch, new equal current, v\xE0 input quan tr\u1ECDng.\n- Backend\
+      \ ki\u1EC3m tra current password b\u1EB1ng bcrypt v\u1EDBi user c\xF3 password\
+      \ hash.\n- Password m\u1EDBi ph\u1EA3i l\u01B0u d\u1EA1ng bcrypt hash; kh\xF4\
+      ng log/return plaintext password ho\u1EB7c hash.\n- Frontend th\xF4ng b\xE1\
+      o b\u1EB1ng React Toastify.\n- Profile page b\xE1m `frontend/DESIGN.md`; kh\xF4\
+      ng t\u1EA1o marketing page ho\u1EB7c style ri\xEAng tr\xE1i design system.\n\
+      - Spec ph\u1EA3i ghi r\xF5 out-of-scope: learner certificates, mentor assigned\
+      \ courses, admin business panels, course/payment/enrollment/learning/mentor-review/report\
+      \ behaviors, public profile, direct frontend Cloudinary upload.\n- Spec ph\u1EA3\
+      i ghi r\xF5 sau n\xE0y mentor/admin profile reuse core `/api/profile`, c\xF2\
+      n d\u1EEF li\u1EC7u role-specific g\u1ECDi API c\u1EE7a module owner.\n\nKh\xF4\
+      ng bao g\u1ED3m chi ti\u1EBFt tri\u1EC3n khai m\xE3 ngu\u1ED3n n\u1EB1m ngo\xE0\
+      i y\xEAu c\u1EA7u \u0111\u1EB7c t\u1EA3 c\u1EE7a Speckit.\n"
+- id: plan
+  command: speckit.plan
+  integration: '{{ inputs.integration }}'
+  input:
+    args: "S\u1EED d\u1EE5ng c\xFA ph\xE1p l\u1EC7nh m\u1EDBi nh\u1EA5t c\u1EE7a Speckit\
+      \ cho l\u1EC7nh speckit.plan.\n\nB\u1EA1n B\u1EAET BU\u1ED8C ph\u1EA3i \u0111\
+      \u1ECDc c\xE1c file sau tr\u01B0\u1EDBc khi t\u1EA1o file plan.md:\n- DATABASE.md\n\
+      - AGENTS.md\n- PROJECT_AGENTS.md\n- .sdd/specs/001-feat-auth/PROJECT_AGENTS.md\n\
+      - .sdd/specs/001-feat-auth/contracts/auth-api.openapi.yaml\n- {{ inputs.feature_dir\
+      \ }}/PROJECT_AGENTS.md\n- frontend/DESIGN.md\n- backend/.env.example\n- frontend/.env.example\n\
+      - {{ inputs.feature_dir }}/context.md\n- {{ inputs.feature_dir }}/spec.md\n\n\
+      C\xE1c r\xE0ng bu\u1ED9c k\u1EF9 thu\u1EADt:\n- Backend: NodeJS + JavaScript\
+      \ ESM + Express-style REST API.\n- Frontend: React + JSX + Bootstrap + Create\
+      \ React App/react-scripts.\n- Package manager: npm.\n- Database/ORM: MySQL +\
+      \ Prisma.\n- Auth: JWT httpOnly Cookie; backend \u0111\u1ECDc token t\u1EEB\
+      \ `req.cookies`; frontend g\u1EEDi credentials.\n- Kh\xF4ng Bearer auth, kh\xF4\
+      ng JWT localStorage/sessionStorage.\n- Backend API profile ph\u1EA3i role-neutral\
+      \ `/api/profile`.\n- Frontend page \u0111\u1EA7u ti\xEAn l\xE0 `/learner/profile`,\
+      \ c\xF3 th\u1EC3 wrap shared profile component.\n- Controllers kh\xF4ng ch\u1EE9\
+      a business logic.\n- Services kh\xF4ng import Prisma.\n- Repositories s\u1EDF\
+      \ h\u1EEFu database access.\n- Cloudinary integration \u0111\u1EB7t trong service/adapter\
+      \ backend; kh\xF4ng \u0111\u1EC3 frontend g\u1ECDi Cloudinary.\n- N\u1EBFu c\u1EA7\
+      n package upload/cloudinary, plan ph\u1EA3i ghi r\xF5 dependency v\xE0 l\xFD\
+      \ do.\n- Request body v\xE0 password fields d\xF9ng Zod validation.\n- Avatar\
+      \ file validation ph\u1EA3i ki\u1EC3m tra type/size tr\u01B0\u1EDBc upload.\n\
+      - Prisma schema change ph\u1EA3i t\u1EA1o migration m\u1EDBi, kh\xF4ng s\u1EED\
+      a/x\xF3a migration c\u0169.\n- Add `users.avatar_public_id` n\u1EBFu ch\u01B0\
+      a t\u1ED3n t\u1EA1i, nullable, backend-only.\n- Error response d\xF9ng `{ success,\
+      \ message, code, details }` ho\u1EB7c helper t\u01B0\u01A1ng \u0111\u01B0\u01A1\
+      ng.\n- Kh\xF4ng leak Cloudinary secret, password hash, avatar public id, JWT,\
+      \ cookie value, raw Prisma/SQL error.\n- Tests d\xF9ng setup \u0111\xE3 duy\u1EC7\
+      t: backend `node:test` + `assert` + `supertest`; frontend `node:test` cho API/source-rule\
+      \ tests nh\u1EB9.\n"
+- id: tasks
+  command: speckit.tasks
+  integration: '{{ inputs.integration }}'
+  input:
+    args: "S\u1EED d\u1EE5ng c\xFA ph\xE1p l\u1EC7nh m\u1EDBi nh\u1EA5t c\u1EE7a Speckit\
+      \ cho l\u1EC7nh speckit.tasks.\n\nB\u1EA1n B\u1EAET BU\u1ED8C ph\u1EA3i \u0111\
+      \u1ECDc c\xE1c file sau tr\u01B0\u1EDBc khi t\u1EA1o file tasks.md:\n- DATABASE.md\n\
+      - AGENTS.md\n- PROJECT_AGENTS.md\n- .sdd/specs/001-feat-auth/PROJECT_AGENTS.md\n\
+      - {{ inputs.feature_dir }}/PROJECT_AGENTS.md\n- frontend/DESIGN.md\n- backend/.env.example\n\
+      - frontend/.env.example\n- {{ inputs.feature_dir }}/context.md\n- {{ inputs.feature_dir\
+      \ }}/spec.md\n- {{ inputs.feature_dir }}/plan.md\n\nT\u1EA1o c\xE1c nhi\u1EC7\
+      m v\u1EE5 nh\u1ECF g\u1ECDn, dependency-ordered, c\xF3 th\u1EC3 ki\u1EC3m th\u1EED\
+      \ \u0111\u01B0\u1EE3c cho t\xEDnh n\u0103ng feat-profile.\nM\u1ED7i nhi\u1EC7\
+      m v\u1EE5 ph\u1EA3i tham chi\u1EBFu y\xEAu c\u1EA7u trong spec v\xE0 c\xF3 done\
+      \ criteria r\xF5 r\xE0ng.\n\nTasks ph\u1EA3i bao g\u1ED3m ki\u1EC3m th\u1EED\
+      \ cho:\n- `GET /api/profile` require auth v\xE0 tr\u1EA3 safe fields.\n- `PATCH\
+      \ /api/profile` update name/avatar cho ch\xEDnh user hi\u1EC7n t\u1EA1i.\n-\
+      \ Reject frontend authority fields nh\u01B0 userId/role/status/emailVerified/hasLocalPassword/avatarPublicId.\n\
+      - Avatar upload validate file type/size.\n- Avatar replacement l\u01B0u new\
+      \ avatar URL/public id v\xE0 x\xF3a old Cloudinary asset.\n- Cloudinary upload\
+      \ failure kh\xF4ng update DB.\n- DB update failure sau upload c\u1ED1 g\u1EAF\
+      ng x\xF3a asset m\u1EDBi.\n- Old avatar delete failure sau DB update kh\xF4\
+      ng rollback avatar m\u1EDBi v\xE0 kh\xF4ng leak secret.\n- Password create cho\
+      \ Google-only user c\xF3 password_hash NULL.\n- Password change cho local user\
+      \ v\u1EDBi current password \u0111\xFAng.\n- Password change reject current\
+      \ password sai.\n- Zod validate confirm mismatch v\xE0 newPassword tr\xF9ng\
+      \ currentPassword.\n- Frontend `/learner/profile` protected route, form validation,\
+      \ Toastify feedback.\n- API client d\xF9ng credentials, kh\xF4ng Bearer, kh\xF4\
+      ng JWT browser storage.\n- Kh\xF4ng Cloudinary secret trong frontend source.\n\
+      - No response leaks password hash, avatar_public_id, Cloudinary secret, raw\
+      \ Prisma/SQL error, JWT ho\u1EB7c cookie value.\n\nKh\xF4ng bao g\u1ED3m vi\u1EC7\
+      c th\u1EF1c thi hay ch\u1EA1y code trong workflow n\xE0y.\n"

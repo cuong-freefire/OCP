@@ -1,0 +1,71 @@
+{
+  "run_id": "9f653b82",
+  "workflow_id": "feat-auth",
+  "status": "failed",
+  "current_step_index": 2,
+  "current_step_id": "plan",
+  "step_results": {
+    "context": {
+      "integration": "codex",
+      "model": null,
+      "options": {},
+      "input": {},
+      "output": {
+        "prompt": "Create the feature context document at .sdd/specs/001-auth/context.md for feat-auth.\n\nYou MUST read these files before writing context:\n- DATABASE.md\n- AGENTS.md\n- PROJECT_AGENTS.md\n\nUse the OCP project rules from those files as binding constraints.\nContext document MUST use these sections exactly:\n1. PROBLEM STATEMENT\n2. DOMAIN KNOWLEDGE\n3. STAKEHOLDERS\n4. CONSTRAINTS\n5. ASSUMPTIONS\n6. OPEN QUESTIONS\n\nFeature scope:\nBuild the OCP authentication feature with local email/password auth, Google OAuth login, JWT httpOnly cookie session, bcrypt password hashing, email verification, password reset, profile access, role-aware backend authorization, blocked/deleted user rejection, and frontend withCredentials support. Backend remains the source of truth. Do not use Bearer auth, localStorage JWT, frontend role authority, or raw OAuth token storage.\n\nInclude these auth constraints:\n- JWT is stored only in httpOnly Cookie.\n- Backend reads auth token from req.cookies.\n- Frontend sends credentials with withCredentials: true.\n- Local auth uses bcrypt and users.password_hash.\n- Google OAuth maps users through oauth_accounts.provider = GOOGLE and provider_user_id = Google sub.\n- Do not store Google id_token, access_token, or refresh_token in database or logs.\n- Do not trust frontend-sent email, role, providerUserId, amount, payment status, or course access.\n- User blocked/deleted status must reject local and Google login.\n- Payment provider is separate from identity provider: payments.provider = VNPAY, oauth_accounts.provider = GOOGLE.\n\nDo not implement code. Only create or update context.md.\n",
+        "integration": "codex",
+        "model": null,
+        "exit_code": 0,
+        "stdout": "",
+        "stderr": "",
+        "dispatched": true
+      },
+      "status": "completed"
+    },
+    "specify": {
+      "integration": "codex",
+      "model": null,
+      "options": {},
+      "input": {
+        "args": "SPECIFY_FEATURE_DIRECTORY=.sdd/specs/001-auth\n\nUse the latest Speckit command semantics for speckit.specify.\n\nYou MUST read these files before generating spec.md:\n- DATABASE.md\n- AGENTS.md\n- PROJECT_AGENTS.md\n- .sdd/specs/001-auth/context.md\n\nGenerate the feature specification for feat-auth.\n\nFeature scope:\nBuild the OCP authentication feature with local email/password auth, Google OAuth login, JWT httpOnly cookie session, bcrypt password hashing, email verification, password reset, profile access, role-aware backend authorization, blocked/deleted user rejection, and frontend withCredentials support. Backend remains the source of truth. Do not use Bearer auth, localStorage JWT, frontend role authority, or raw OAuth token storage.\n\nRequired behavior:\n- Register learner with email/password.\n- Login/logout using JWT in httpOnly Cookie.\n- Read current user/profile from backend session.\n- Verify email and reset password using hashed one-time tokens.\n- Support Google OAuth login/linking using oauth_accounts.\n- Reject blocked/deleted users for all login methods.\n- Enforce backend source of truth for role/userId/access.\n- Keep auth module boundaries; other modules consume Auth/User contracts.\n- Define out-of-scope explicitly: payment checkout, enrollment, learning progress, admin CRUD, course CRUD.\n\nMust not include implementation details beyond what Speckit spec requires.\n"
+      },
+      "output": {
+        "command": "speckit.specify",
+        "integration": "codex",
+        "model": null,
+        "options": {},
+        "input": {
+          "args": "SPECIFY_FEATURE_DIRECTORY=.sdd/specs/001-auth\n\nUse the latest Speckit command semantics for speckit.specify.\n\nYou MUST read these files before generating spec.md:\n- DATABASE.md\n- AGENTS.md\n- PROJECT_AGENTS.md\n- .sdd/specs/001-auth/context.md\n\nGenerate the feature specification for feat-auth.\n\nFeature scope:\nBuild the OCP authentication feature with local email/password auth, Google OAuth login, JWT httpOnly cookie session, bcrypt password hashing, email verification, password reset, profile access, role-aware backend authorization, blocked/deleted user rejection, and frontend withCredentials support. Backend remains the source of truth. Do not use Bearer auth, localStorage JWT, frontend role authority, or raw OAuth token storage.\n\nRequired behavior:\n- Register learner with email/password.\n- Login/logout using JWT in httpOnly Cookie.\n- Read current user/profile from backend session.\n- Verify email and reset password using hashed one-time tokens.\n- Support Google OAuth login/linking using oauth_accounts.\n- Reject blocked/deleted users for all login methods.\n- Enforce backend source of truth for role/userId/access.\n- Keep auth module boundaries; other modules consume Auth/User contracts.\n- Define out-of-scope explicitly: payment checkout, enrollment, learning progress, admin CRUD, course CRUD.\n\nMust not include implementation details beyond what Speckit spec requires.\n"
+        },
+        "exit_code": 0,
+        "stdout": "",
+        "stderr": "",
+        "dispatched": true
+      },
+      "status": "completed"
+    },
+    "plan": {
+      "integration": "codex",
+      "model": null,
+      "options": {},
+      "input": {
+        "args": "Use the latest Speckit command semantics for speckit.plan.\n\nYou MUST read these files before generating plan.md:\n- DATABASE.md\n- AGENTS.md\n- PROJECT_AGENTS.md\n- .sdd/specs/001-auth/context.md\n- .sdd/specs/001-auth/spec.md\n\nTechnical constraints:\n- Backend: NodeJS Express-style REST API.\n- ORM/database: Prisma + MySQL.\n- Validation: Zod for body/query/params.\n- Auth: JWT httpOnly Cookie, bcrypt, Google OAuth.\n- Data model must align with users, refresh_tokens, email_verifications, password_reset_tokens, oauth_accounts.\n- Controllers must not contain business logic.\n- Services must not import Prisma directly.\n- Repositories own database access.\n- Do not store raw JWT, raw reset/verification tokens, raw Google tokens, password plain text, or secrets.\n- Use backend contracts for identity/session; frontend guards are UX only.\n"
+      },
+      "output": {
+        "command": "speckit.plan",
+        "integration": "codex",
+        "model": null,
+        "options": {},
+        "input": {
+          "args": "Use the latest Speckit command semantics for speckit.plan.\n\nYou MUST read these files before generating plan.md:\n- DATABASE.md\n- AGENTS.md\n- PROJECT_AGENTS.md\n- .sdd/specs/001-auth/context.md\n- .sdd/specs/001-auth/spec.md\n\nTechnical constraints:\n- Backend: NodeJS Express-style REST API.\n- ORM/database: Prisma + MySQL.\n- Validation: Zod for body/query/params.\n- Auth: JWT httpOnly Cookie, bcrypt, Google OAuth.\n- Data model must align with users, refresh_tokens, email_verifications, password_reset_tokens, oauth_accounts.\n- Controllers must not contain business logic.\n- Services must not import Prisma directly.\n- Repositories own database access.\n- Do not store raw JWT, raw reset/verification tokens, raw Google tokens, password plain text, or secrets.\n- Use backend contracts for identity/session; frontend guards are UX only.\n"
+        },
+        "exit_code": 101,
+        "stdout": "",
+        "stderr": "",
+        "dispatched": true
+      },
+      "status": "failed"
+    }
+  },
+  "created_at": "2026-05-31T15:43:36.526426+00:00",
+  "updated_at": "2026-05-31T15:53:54.813685+00:00"
+}

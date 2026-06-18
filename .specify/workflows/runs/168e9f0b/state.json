@@ -1,0 +1,10 @@
+{
+  "run_id": "168e9f0b",
+  "workflow_id": "feat-auth",
+  "status": "running",
+  "current_step_index": 0,
+  "current_step_id": "context",
+  "step_results": {},
+  "created_at": "2026-06-02T13:24:58.988798+00:00",
+  "updated_at": "2026-06-02T13:24:59.015137+00:00"
+}

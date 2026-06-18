@@ -1,0 +1,9 @@
+{"event": "step_started", "step_id": "context", "type": "prompt", "timestamp": "2026-05-31T15:56:29.585435+00:00"}
+{"event": "step_completed", "step_id": "context", "status": "completed", "timestamp": "2026-05-31T15:59:17.649615+00:00"}
+{"event": "step_started", "step_id": "specify", "type": "command", "timestamp": "2026-05-31T15:59:17.656804+00:00"}
+{"event": "step_completed", "step_id": "specify", "status": "completed", "timestamp": "2026-05-31T16:02:01.177253+00:00"}
+{"event": "step_started", "step_id": "plan", "type": "command", "timestamp": "2026-05-31T16:02:01.180403+00:00"}
+{"event": "step_completed", "step_id": "plan", "status": "completed", "timestamp": "2026-05-31T16:13:18.715561+00:00"}
+{"event": "step_started", "step_id": "tasks", "type": "command", "timestamp": "2026-05-31T16:13:18.733202+00:00"}
+{"event": "step_completed", "step_id": "tasks", "status": "completed", "timestamp": "2026-05-31T16:19:56.671503+00:00"}
+{"event": "workflow_finished", "status": "completed", "timestamp": "2026-05-31T16:19:56.673747+00:00"}
