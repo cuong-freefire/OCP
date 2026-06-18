@@ -175,11 +175,11 @@ frontend/
 
 | Module | Owner | Rule |
 | --- | --- | --- |
-| Auth + Email + Profile | Member 1 - AnhND | Other modules consume Auth/User contracts and do not parse JWT or own email verification |
+| Auth + Email + Profile | Member 1 - CuongLH | Other modules consume Auth/User contracts and do not parse JWT or own email verification |
 | Mentor Course Studio + Revision | Member 2 - Nam | Other modules use canEditCourse() contract for approval flow |
-| Payment + Enrollment + Catalog | Member 3 - CuongLH | Owns payments, orders, enrollments, course catalog, and enrollment-based access |
+| Payment + Enrollment + Catalog | Member 3 - TienTD  | Owns payments, orders, enrollments, course catalog, and enrollment-based access |
 | Learning + Quiz + Rating | Member 4 - Duc | Uses EnrollmentService contract via DI and does not read payments directly |
-| Manager Approval + Admin | Member 5 - Tien | Approves/rejects courses, manages users, generates reports via approved contracts |
+| Manager Approval + Admin | Member 5 - AnhND | Approves/rejects courses, manages users, generates reports via approved contracts |
 
 Backend remains the source of truth for:
 
