@@ -1,7 +1,0 @@
-{
-  "inputs": {
-    "feature_dir": ".sdd/specs/001-auth",
-    "integration": "codex",
-    "feature": "Build the OCP authentication feature with local email/password auth, Google OAuth login, JWT httpOnly cookie session, bcrypt password hashing, email verification, password reset, profile access, role-aware backend authorization, blocked/deleted user rejection, and frontend withCredentials support. Backend remains the source of truth. Do not use Bearer auth, localStorage JWT, frontend role authority, or raw OAuth token storage."
-  }
-}

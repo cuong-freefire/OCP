@@ -1,8 +1,0 @@
-{"event": "step_started", "step_id": "context", "type": "prompt", "timestamp": "2026-05-31T15:43:36.545743+00:00"}
-{"event": "step_completed", "step_id": "context", "status": "completed", "timestamp": "2026-05-31T15:46:22.776035+00:00"}
-{"event": "step_started", "step_id": "specify", "type": "command", "timestamp": "2026-05-31T15:46:22.783525+00:00"}
-{"event": "step_completed", "step_id": "specify", "status": "completed", "timestamp": "2026-05-31T15:52:17.474928+00:00"}
-{"event": "step_started", "step_id": "plan", "type": "command", "timestamp": "2026-05-31T15:52:17.481488+00:00"}
-{"event": "step_completed", "step_id": "plan", "status": "failed", "timestamp": "2026-05-31T15:53:54.803743+00:00"}
-{"event": "step_failed", "step_id": "plan", "error": "Command exited with code 101", "timestamp": "2026-05-31T15:53:54.808130+00:00"}
-{"event": "workflow_finished", "status": "failed", "timestamp": "2026-05-31T15:53:54.812843+00:00"}

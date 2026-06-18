@@ -1,4 +1,0 @@
-{"event": "step_started", "step_id": "context", "type": "prompt", "timestamp": "2026-06-01T03:54:04.558541+00:00"}
-{"event": "step_completed", "step_id": "context", "status": "failed", "timestamp": "2026-06-01T03:54:04.575547+00:00"}
-{"event": "step_failed", "step_id": "context", "error": "Cannot dispatch prompt: integration 'codex' CLI not found or not installed.", "timestamp": "2026-06-01T03:54:04.576111+00:00"}
-{"event": "workflow_finished", "status": "failed", "timestamp": "2026-06-01T03:54:04.577942+00:00"}
