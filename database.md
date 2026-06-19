@@ -97,6 +97,8 @@
 | `id` | CHAR(36) | PK | UUID người dùng |
 | `email` | VARCHAR(255) | UNIQUE, NOT NULL | Email đăng nhập |
 | `password_hash` | VARCHAR(255) | NULL | Bcrypt hash; NULL nếu Google-only |
+| `name` | VARCHAR(255) | NULL | Tên hiển thị người dùng |
+| `avatar_url` | VARCHAR(500) | NULL | URL ảnh đại diện (Cloudinary) |
 | `role` | ENUM('ADMIN','LEARNER','MENTOR','MANAGER') | NOT NULL | Vai trò người dùng |
 | `role_version` | INT | DEFAULT 1 | Phiên bản role (E2.2 - invalidate JWT khi đổi role) |
 | `status` | ENUM('active','blocked','pending_verification') | NOT NULL | Trạng thái tài khoản |

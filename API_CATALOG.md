@@ -14,8 +14,8 @@
 | 4 | POST | `/auth/refresh-token` | Refresh access token | Refresh JWT | A |
 | 5 | POST | `/auth/logout` | Logout & revoke refresh token | Access JWT | A |
 | 6 | PUT | `/admin/users/:userId/role` | Admin change user role | Admin JWT | A |
-| 7 | GET | `/profile/me` | Get current user profile | User JWT | A |
-| 8 | PUT | `/profile/me` | Update current user profile | User JWT | A |
+| 7 | GET | `/profile/me` | Get current user profile (id, email, name, avatar_url, role, status) | User JWT | A |
+| 8 | PUT | `/profile/me` | Update current user profile (name, avatar_url only) | User JWT | A |
 
 ---
 
