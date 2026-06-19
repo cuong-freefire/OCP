@@ -7,24 +7,26 @@
 **ORM:** Prisma  
 **Status:** ✅ Fully aligned with V5 + V2 Error Fixes + E3.x Fixes Applied
 
-
 ---
 
 ## 🎯 Critical Fixes Applied (from V2)
 
 ### E2.2: Role Version for JWT Invalidation
+
 - **Issue:** Admin demotes Mentor → existing JWT still valid for 15 mins
 - **Fix:** Add `role_version INT DEFAULT 1` to users table
 - **Behavior:** JWT includes roleVersion, middleware validates match
 - **Action:** On role change, increment to revoke all sessions
 
 ### E3.2: Remove UNIQUE on order_index (CASCADE Fix)
+
 - **Issue:** Reorder sections/lessons triggers CASCADE delete of all lessons/quizzes/assets
 - **Fix:** Remove UNIQUE constraint, keep INDEX for performance
 - **Tables:** course_sections, lessons
 - **Approach:** Update in transaction loop, not delete+create
 
 ### E3.3: Price as BIGINT (No Floating-Point Errors)
+
 - **Issue:** DECIMAL(15,2) causes floating-point rounding on VND amounts
 - **Fix:** Store as BIGINT integer (đồng, not VND with decimals)
 - **Conversion:** 250,000 VND stored as `250000` in database
@@ -32,22 +34,24 @@
 - **Tables:** courses.price, orders.total_price, payments.amount
 
 ### E3.4-E3.6: New Indexes for Performance
+
 - `idx_revisions_status_date(status, created_at DESC)` - Manager approval queue
 - `idx_enrollments_user_status(user_id, status)` - "My courses" query
 - `idx_refresh_tokens_user_revoke(user_id, revoked_at)` - Revoke on block
-
 
 ---
 
 ## 📊 Strict 19 Tables (SCOPED)
 
 **Member A (Auth):** 4 tables
+
 - users (with role_version)
 - refresh_tokens
 - email_verifications
 - password_reset_tokens
 
 **Member B (Mentor):** 7 tables
+
 - courses
 - course_revisions
 - course_sections (NO UNIQUE order_index)
@@ -57,16 +61,19 @@
 - quiz_questions
 
 **Member C (Payment):** 3 tables
+
 - orders (total_price BIGINT)
 - payments (amount BIGINT)
 - enrollments
 
 **Member D (Learning):** 3 tables
+
 - quiz_submissions
 - ratings
 - feedbacks
 
 **Member E (Manager):** 2 tables
+
 - course_reviews
 - review_comments
 
@@ -77,12 +84,12 @@
 ## Tổng Quan Hệ Thống
 
 **19 Tables, 5 Members:**
+
 - **Member A (Auth):** 4 tables
 - **Member B (Mentor):** 7 tables
 - **Member C (Payment):** 3 tables
 - **Member D (Learning):** 3 tables
 - **Member E (Manager):** 2 tables
-
 
 ---
 
@@ -97,6 +104,8 @@
 | `id` | CHAR(36) | PK | UUID người dùng |
 | `email` | VARCHAR(255) | UNIQUE, NOT NULL | Email đăng nhập |
 | `password_hash` | VARCHAR(255) | NULL | Bcrypt hash; NULL nếu Google-only |
+| `name` | VARCHAR(255) | NULL | Tên hiển thị người dùng |
+| `avatar_url` | VARCHAR(500) | NULL | URL ảnh đại diện (Cloudinary) |
 | `role` | ENUM('ADMIN','LEARNER','MENTOR','MANAGER') | NOT NULL | Vai trò người dùng |
 | `role_version` | INT | DEFAULT 1 | Phiên bản role (E2.2 - invalidate JWT khi đổi role) |
 | `status` | ENUM('active','blocked','pending_verification') | NOT NULL | Trạng thái tài khoản |
@@ -104,11 +113,13 @@
 | `updated_at` | DATETIME(3) | DEFAULT CURRENT_TIMESTAMP(3) | Thời gian cập nhật |
 
 **Constraints:**
+
 - PRIMARY KEY: `id`
 - UNIQUE INDEX: `email`
 - INDEX: `(role, status)` for role-based queries
 
 **Business Rules:**
+
 - Email dùng cho local email/password login
 - Password_hash NULL cho Google-only users
 - Admin block user → status = 'blocked'
@@ -131,11 +142,11 @@
 | `created_at` | DATETIME(3) | DEFAULT CURRENT_TIMESTAMP(3) | Thời gian tạo |
 
 **Business Rules:**
+
 - Refresh token expire 7-30 ngày
 - Block user → revoke tất cả refresh_tokens
 - Access token expire 5 phút (FIXED per E2.2 - không dùng 15-60)
 - Refresh token rotation on use
-
 
 ---
 
@@ -156,6 +167,7 @@
 | `created_at` | DATETIME(3) | DEFAULT CURRENT_TIMESTAMP(3) | Thời gian tạo |
 
 **Business Rules:**
+
 - OTP 6 số, hết hạn 10 phút
 - Tối đa 5 lần nhập sai
 - Resend cooldown 60 giây
@@ -180,6 +192,7 @@
 | `created_at` | DATETIME(3) | DEFAULT CURRENT_TIMESTAMP(3) | Thời gian tạo |
 
 **Business Rules:**
+
 - Chỉ tạo cho local account có password_hash NOT NULL
 - Chỉ tạo khi email tồn tại (public response dùng thông báo chung)
 - Google-only user (password_hash NULL) KHÔNG được tạo password reset
@@ -208,12 +221,13 @@
 | `updated_at` | DATETIME(3) | DEFAULT CURRENT_TIMESTAMP(3) | Thời gian cập nhật |
 
 **Constraints:**
+
 - PRIMARY KEY: `id`
 - FOREIGN KEY: `mentor_id` → users.id
 - INDEX: `(mentor_id, status)` for Mentor dashboard
 
-
 **Business Rules:**
+
 - 100% khóa học trả phí (price > 0)
 - Mentor chỉ CRUD course của mình
 - Published course chỉ xuất hiện catalog
@@ -224,7 +238,6 @@
 ### 6. Table: `course_revisions`
 
 **Mô tả:** Lịch sử revision để Manager review trước khi publish. Snapshot course data tại thời điểm submit.
-
 
 | Field | Type | Constraints | Mô tả |
 |-------|------|-------------|-------|
@@ -238,13 +251,16 @@
 | `updated_at` | DATETIME(3) | DEFAULT CURRENT_TIMESTAMP(3) | Thời gian cập nhật |
 
 **Constraints:**
+
 - PRIMARY KEY: `id`
 - FOREIGN KEY: `course_id` → courses.id
 - UNIQUE: `(course_id, revision_num)`
 
 **Business Rules:**
+
 - Mentor submit course → tạo revision PENDING_REVIEW + snapshot course data
 - snapshot_data JSON format (FULL CURRICULUM - Per E1.1):
+
   ```javascript
   {
     // Metadata
@@ -256,12 +272,12 @@
     quiz_questions: [{ id, quiz_id, question, options_json, correct_answer, order_index }]
   }
   ```
+
 - Manager review dùng snapshot_data, KHÔNG query live course table
 - Manager publish → restore FULL curriculum từ snapshot, khôi phục sections/lessons/quizzes/assets trong cùng 1 transaction
 - Manager reject → revision.status = REJECTED, reject_comment bắt buộc
 - Mentor resubmit → tạo revision mới với revision_num tăng, snapshot_data cập nhật với full curriculum mới
 - **⚠️ CRITICAL (E1.1)**: Manager LUÔN review revision snapshot, không bị ảnh hưởng bởi Mentor sửa course sau khi submit
-
 
 ---
 
@@ -279,16 +295,17 @@
 | `updated_at` | DATETIME(3) | DEFAULT CURRENT_TIMESTAMP(3) | Thời gian cập nhật |
 
 **Constraints:**
+
 - PRIMARY KEY: `id`
 - FOREIGN KEY: `course_id` → courses.id
 - INDEX: `(course_id, order_index)` (E3.2 - NO UNIQUE to prevent CASCADE delete on reorder)
 
 **Business Rules:**
+
 - Mentor CRUD section của course mình
 - Soft delete (không hard delete)
 - Check ownership qua canEditCourse()
 - **⚠️ CRITICAL (E3.2)**: Reorder dùng UPDATE loop in transaction, KHÔNG DELETE then CREATE
-
 
 ---
 
@@ -309,14 +326,15 @@
 | `updated_at` | DATETIME(3) | DEFAULT CURRENT_TIMESTAMP(3) | Thời gian cập nhật |
 
 **Constraints:**
+
 - PRIMARY KEY: `id`
 - FOREIGN KEY: `section_id` → course_sections.id (ON DELETE CASCADE)
 - INDEX: `(section_id, order_index)` (E3.2 - NO UNIQUE to prevent CASCADE delete on reorder)
 
 **Business Rules:**
+
 - Learner xem lesson tự do, không track tiến độ (out of scope)
 - Mentor upload assets (video, tài liệu) qua lesson_assets
-
 
 ---
 
@@ -332,17 +350,17 @@
 | `asset_type` | ENUM('video','document') | NOT NULL | Loại asset |
 | `created_at` | DATETIME(3) | DEFAULT CURRENT_TIMESTAMP(3) | Thời gian upload |
 
-
 **Constraints:**
+
 - PRIMARY KEY: `id`
 - FOREIGN KEY: `lesson_id` → lessons.id
 
 **Business Rules:**
+
 - Frontend upload trực tiếp Cloudinary
 - Backend cấp signature với type="authenticated"
 - Learner/Manager access qua signed URL (expire 1 giờ)
 - KHÔNG lưu public URL
-
 
 ---
 
@@ -360,10 +378,12 @@
 | `updated_at` | DATETIME(3) | DEFAULT CURRENT_TIMESTAMP(3) | Thời gian cập nhật |
 
 **Constraints:**
+
 - PRIMARY KEY: `id`
 - FOREIGN KEY: `lesson_id` → lessons.id
 
 **Business Rules:**
+
 - Mentor CRUD quiz của course mình
 - Learner auto-grade (chỉ câu có đáp án rõ)
 
@@ -384,10 +404,12 @@
 | `created_at` | DATETIME(3) | DEFAULT CURRENT_TIMESTAMP(3) | Thời gian tạo |
 
 **Constraints:**
+
 - PRIMARY KEY: `id`
 - FOREIGN KEY: `quiz_id` → quizzes.id
 
 **Business Rules:**
+
 - correct_answer là JSON array (multi-select)
 - Mentor CRUD (không expose correct_answer cho learner trước submit)
 - Backend validate answers_json schema
@@ -411,12 +433,14 @@
 | `updated_at` | DATETIME(3) | DEFAULT CURRENT_TIMESTAMP(3) | Thời gian cập nhật |
 
 **Constraints:**
+
 - PRIMARY KEY: `id`
 - FOREIGN KEY: `user_id` → users.id
 - FOREIGN KEY: `course_id` → courses.id
 - **NO UNIQUE CONSTRAINT** (Per E3.4 fix - allow learner retry after failed payment)
 
 **Business Rules:**
+
 - 1 order = 1 course (MVP không có cart)
 - Backend snapshot course.price tại thời điểm tạo
 - PENDING → PAID sau payment SUCCESS
@@ -443,12 +467,14 @@
 | `updated_at` | DATETIME(3) | DEFAULT CURRENT_TIMESTAMP(3) | Thời gian cập nhật |
 
 **Constraints:**
+
 - PRIMARY KEY: `id`
 - FOREIGN KEY: `order_id` → orders.id
 - UNIQUE INDEX: `vnpay_transaction_id` (cho idempotent)
 - INDEX: `(status, expires_at)` (dashboard query)
 
 **Business Rules:**
+
 - Backend validate amount = courses.price realtime
 - PENDING → SUCCESS sau VNPAY callback verify
 - Payment callback dùng transaction + SELECT FOR UPDATE
@@ -471,12 +497,14 @@
 | `updated_at` | DATETIME(3) | DEFAULT CURRENT_TIMESTAMP(3) | Thời gian cập nhật |
 
 **Constraints:**
+
 - PRIMARY KEY: `id`
 - FOREIGN KEY: `user_id` → users.id
 - FOREIGN KEY: `course_id` → courses.id
 - UNIQUE: `(user_id, course_id)` (one enrollment per learner-course)
 
 **Business Rules:**
+
 - Tạo enrollment sau khi payment SUCCESS với status = 'active'
 - Check `status === 'active'` trước khi cho learner access lesson/submit quiz/rating (E2.4)
 - Enrollment bị cancel → status = 'cancelled' (soft cancel, không xóa)
@@ -503,12 +531,14 @@
 | `created_at` | DATETIME(3) | DEFAULT CURRENT_TIMESTAMP(3) | Thời gian tạo |
 
 **Constraints:**
+
 - PRIMARY KEY: `id`
 - FOREIGN KEY: `user_id` → users.id (ON DELETE RESTRICT)
 - FOREIGN KEY: `quiz_id` → quizzes.id (ON DELETE CASCADE - E5 fix)
 - INDEX: `(user_id, quiz_id)` (để lấy lịch submit)
 
 **Business Rules:**
+
 - Auto-grade dựa trên correct_answer
 - Learner chỉ xem data của mình
 - Quiz chỉ là bài học (KHÔNG cấp certificate)
@@ -528,12 +558,14 @@
 | `created_at` | DATETIME(3) | DEFAULT CURRENT_TIMESTAMP(3) | Thời gian rating |
 
 **Constraints:**
+
 - PRIMARY KEY: `id`
 - FOREIGN KEY: `course_id` → courses.id
 - FOREIGN KEY: `user_id` → users.id
 - UNIQUE: `(course_id, user_id)` (1 rating per learner-course)
 
 **Business Rules:**
+
 - Learner rating bất cứ lúc nào sau khi enroll (KHÔNG yêu cầu 100% lessons)
 - **Archived course**: Learner với valid enrollment (paid+success) vẫn có thể access + rate/feedback
 - Chỉ cần check enrollment hợp lệ (paid+success)
@@ -554,11 +586,13 @@
 | `created_at` | DATETIME(3) | DEFAULT CURRENT_TIMESTAMP(3) | Thời gian feedback |
 
 **Constraints:**
+
 - PRIMARY KEY: `id`
 - FOREIGN KEY: `course_id` → courses.id
 - FOREIGN KEY: `user_id` → users.id
 
 **Business Rules:**
+
 - Learner feedback bất cứ lúc nào sau khi enroll
 - KHÔNG limit số lần feedback (khác rating)
 - Chỉ cần check enrollment hợp lệ (paid+success)
@@ -580,11 +614,13 @@
 | `created_at` | DATETIME(3) | DEFAULT CURRENT_TIMESTAMP(3) | Thời gian review |
 
 **Constraints:**
+
 - PRIMARY KEY: `id`
 - FOREIGN KEY: `revision_id` → course_revisions.id
 - FOREIGN KEY: `manager_id` → users.id
 
 **Business Rules:**
+
 - Manager duyệt revision PENDING_REVIEW
 - Publish → revision.status = PUBLISHED, courses.status = PUBLISHED
 - Reject → revision.status = REJECTED (lưu comment ở review_comments)
@@ -603,10 +639,12 @@
 | `created_at` | DATETIME(3) | DEFAULT CURRENT_TIMESTAMP(3) | Thời gian comment |
 
 **Constraints:**
+
 - PRIMARY KEY: `id`
 - FOREIGN KEY: `review_id` → course_reviews.id
 
 **Business Rules:**
+
 - Reject bắt buộc comment (minLength 10)
 - Mentor xem comment để sửa course
 - Zod validate comment NOT NULL và minLength
@@ -643,12 +681,14 @@ CREATE INDEX idx_quiz_submissions_user ON quiz_submissions(user_id, quiz_id);
 ```
 
 **Issue 3.5 & 3.7 - New Indexes:**
+
 - `idx_enrollments_course`: Filter enrollments by course (Member C analytics)
 - `idx_enrollments_user`: Filter enrollments by learner (Member D access check)
 - `idx_ratings_course`: Calculate avg rating per course (Member D analytics)
 - `idx_payments_status_expires`: Auto-cancel expired PENDING payments (cron job)
 
 **Issue 3.4 - orders UNIQUE constraint:**
+
 - Current: `UNIQUE: (user_id, course_id)` - prevents multiple purchase attempts
 - Fix: **REMOVE constraint** to allow learner retry after failed payment
 - Business logic: Check `enrollments` table for duplicate instead of `orders`
@@ -657,6 +697,7 @@ CREATE INDEX idx_quiz_submissions_user ON quiz_submissions(user_id, quiz_id);
 ### Foreign Key ON DELETE Behavior
 
 **CASCADE (Auto-delete child records):**
+
 - `course_sections.course_id` → `courses.id`: ON DELETE CASCADE
   - Xóa course → auto-delete tất cả sections, lessons, quizzes
 - `lessons.section_id` → `course_sections.id`: ON DELETE CASCADE
@@ -671,6 +712,7 @@ CREATE INDEX idx_quiz_submissions_user ON quiz_submissions(user_id, quiz_id);
   - Xóa course → auto-delete tất cả revisions + review_comments
 
 **RESTRICT (Prevent delete if child exists):**
+
 - `enrollments.user_id` → `users.id`: ON DELETE RESTRICT
   - Cannot delete user nếu có enrollment
 - `enrollments.course_id` → `courses.id`: ON DELETE RESTRICT
@@ -696,7 +738,8 @@ CREATE INDEX idx_quiz_submissions_user ON quiz_submissions(user_id, quiz_id);
 - `course_reviews.revision_id` → `course_revisions.id`: ON DELETE RESTRICT
   - Cannot delete revision nếu có review
 
-**⚠️ CRITICAL**: 
+**⚠️ CRITICAL**:
+
 - CASCADE rules cho content (sections, lessons, quizzes) để tránh orphaned data
 - RESTRICT rules cho relationships có dữ liệu user/audit trail để maintain integrity
 - Soft delete ưu tiên hơn hard delete: Thêm `deleted_at` field thay vì ON DELETE CASCADE cho high-risk tables
@@ -706,6 +749,7 @@ CREATE INDEX idx_quiz_submissions_user ON quiz_submissions(user_id, quiz_id);
 ## CONSTRAINTS & BUSINESS RULES
 
 ✅ **REQUIRED:**
+
 - Backend validate course.price từ DB
 - Payment callback idempotent (SELECT FOR UPDATE)
 - Enrollment unique per user+course
@@ -714,6 +758,7 @@ CREATE INDEX idx_quiz_submissions_user ON quiz_submissions(user_id, quiz_id);
 - Foreign Key constraints enforce ON DELETE behavior (CASCADE vs RESTRICT)
 
 ❌ **FORBIDDEN:**
+
 - Frontend quyết định amount, price, userId
 - Member D query trực tiếp enrollments, payments, orders
 - Hard delete dữ liệu quan trọng
@@ -723,4 +768,3 @@ CREATE INDEX idx_quiz_submissions_user ON quiz_submissions(user_id, quiz_id);
 ---
 
 **END OF DATABASE SCHEMA**
-
