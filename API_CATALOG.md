@@ -135,6 +135,7 @@
 ## ⚠️ CRITICAL ERROR FIXES EMBEDDED IN APIs
 
 ### E1.1 - Snapshot Publish with Full Curriculum (T081)
+
 ```
 POST /manager/reviews/:revisionId/publish
 - Must restore FULL curriculum from snapshot_data
@@ -144,6 +145,7 @@ POST /manager/reviews/:revisionId/publish
 ```
 
 ### E1.2 - Lock Published Courses (T021)
+
 ```
 PUT /mentor/courses/:courseId
 - FORBIDDEN if course.status = 'published'
@@ -151,6 +153,7 @@ PUT /mentor/courses/:courseId
 ```
 
 ### E1.3 - Validate Course Status in Payment Callback (T042)
+
 ```
 POST /payments/vnpay/callback
 - Must check course.status = 'published' before enrollment
@@ -158,6 +161,7 @@ POST /payments/vnpay/callback
 ```
 
 ### E1.4 - Restrict Revision Submit (T025)
+
 ```
 POST /mentor/courses/:courseId/submit-review
 - ONLY allow if course.status in ['draft', 'rejected']
@@ -165,6 +169,7 @@ POST /mentor/courses/:courseId/submit-review
 ```
 
 ### E1.5 - canAccessCourse API Endpoint (T043)
+
 ```
 GET /enrollments/check
 - Response: { hasAccess, enrollment, course }
@@ -174,6 +179,7 @@ GET /enrollments/check
 ```
 
 ### E2.1 - Lesson Ownership Validation (T023)
+
 ```
 GET /mentor/lessons/:lessonId/upload-signature
 - Must validate: lesson.section.course.mentor_id === req.user.id
@@ -181,6 +187,7 @@ GET /mentor/lessons/:lessonId/upload-signature
 ```
 
 ### E2.2 - Role Version Check (E2.2)
+
 ```
 All protected endpoints
 - Check req.user.roleVersion match users.role_version
@@ -189,6 +196,7 @@ All protected endpoints
 ```
 
 ### E2.3 - Prevent Self-Approval (T081)
+
 ```
 POST /manager/reviews/:revisionId/publish
 - IF canEditCourse(req.user.id, courseId) === true
@@ -196,6 +204,7 @@ POST /manager/reviews/:revisionId/publish
 ```
 
 ### E2.4 - Enrollment Status for Rating (T062)
+
 ```
 POST /ratings
 - Must check enrollment.status === 'active'
@@ -203,6 +212,7 @@ POST /ratings
 ```
 
 ### E3.2 - Reorder without CASCADE Delete (T024)
+
 ```
 PUT /mentor/courses/:courseId/reorder
 - Use UPDATE loop (NOT DELETE then CREATE)
@@ -210,6 +220,7 @@ PUT /mentor/courses/:courseId/reorder
 ```
 
 ### E3.3 - Price as BIGINT (No decimals)
+
 ```
 All price/amount fields
 - Store as BIGINT (đồng, not decimals)
@@ -217,6 +228,7 @@ All price/amount fields
 ```
 
 ### E4.1 - Internal Analytics APIs (T045, T065)
+
 ```
 GET /internal/courses/:courseId/stats (Member C)
 GET /internal/courses/:courseId/rating-stats (Member D)
@@ -226,6 +238,7 @@ GET /internal/courses/:courseId/rating-stats (Member D)
 ```
 
 ### E4.2 - Remove userId from Request Body (T041)
+
 ```
 POST /payments/create
 - userId ONLY from JWT (req.user.id)
@@ -234,6 +247,7 @@ POST /payments/create
 ```
 
 ### E4.4 - Dependency Injection (NOT HTTP) (T061)
+
 ```
 POST /quizzes/submit
 - Call canAccessCourse(userId, courseId, req.user.role) via DI
