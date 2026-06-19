@@ -1,214 +1,47 @@
-# =========================
-# Maven
-# =========================
-target/
-!.mvn/wrapper/maven-wrapper.jar
-.mvn/
-mvnw
-mvnw.cmd
-
-# Keep target folders inside src if needed
-!**/src/main/**/target/
-!**/src/test/**/target/
-
-# =========================
-# Gradle
-# =========================
-.gradle/
-gradle-app.setting
-build.gradle
-settings.gradle
-gradlew
-gradlew.bat
-
-# =========================
-# Logs
-# =========================
-*.log
-logs/
-
-# =========================
-# Environment / Secrets
-# =========================
-.env
-.env.*
-!.env.example
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
-secrets.json
-credentials.json
-*.pem
-*.key
-id_rsa*
-id_ed25519*
-
-# =========================
-# Spring Boot
-# =========================
-HELP.md
-application-local.properties
-application-secret.properties
-.spring-boot-devtools.properties
-
-# =========================
-# IntelliJ IDEA
-# =========================
-.idea/
-*.iws
-*.iml
-*.ipr
-out/
-
-# =========================
-# VS Code
-# =========================
-.vscode/
-
-# =========================
-# Eclipse / STS
-# =========================
-.apt_generated
-.classpath
-.factorypath
-.project
-.settings/
-.springBeans
-.sts4-cache
-
-# =========================
-# NetBeans
-# =========================
-/nbproject/private/
-/nbbuild/
-/dist/
-/nbdist/
-/.nb-gradle/
-build/
-
-!**/src/main/**/build/
-!**/src/test/**/build/
-
-# =========================
-# OS Files
-# =========================
-.DS_Store
-.AppleDouble
-.LSOverride
-Icon
-._*
-Thumbs.db
-ehthumbs.db
-Desktop.ini
-$RECYCLE.BIN/
-*~
-
-# =========================
-# Java
-# =========================
-*.class
-*.jar
-*.war
-*.ear
-.flattened-pom.xml
-dependency-reduced-pom.xml
-build.log
-*.hprof
-
-# =========================
-# Temporary Files
-# =========================
-*.tmp
-*.swp
-*.swo
-tmp/
-temp/
-/tmp
-
-# =========================
-# Node.js
-# =========================
+# Dependencies
 node_modules/
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+*.err.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
-lerna-debug.log*
-.pnpm-store/
-.npm/
-.yarn/
-.yarn-integrity
 
-# =========================
-# Test Coverage
-# =========================
-coverage/
-.nyc_output/
-
-# =========================
-# React / Build
-# =========================
+# Build outputs
 build/
 dist/
-.out/
 .next/
-.nuxt/
+out/
+
+# IDE and Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# OS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+
+# Misc
 .cache/
-.vite/
-
-# =========================
-# TypeScript
-# =========================
-*.tsbuildinfo
-
-# =========================
-# Prisma
-# =========================
-# Generated client is in node_modules (already ignored)
-# Keep schema.prisma and migrations in git
-
-# =========================
-# ESLint / Prettier
-# =========================
-.eslintcache
-.prettierignore
-
-# =========================
-# Database Files
-# =========================
-*.db
-*.sqlite
-*.sqlite3
-
-# =========================
-# Uploads
-# =========================
-uploads/
-
-# =========================
-# Editor / Tools
-# =========================
-*.sublime-project
-*.sublime-workspace
-.zed
-*.pyc
-
-# =========================
-# Module Cache
-# =========================
-.module-cache
-
-# =========================
-# Archives
-# =========================
-*.7z
-*.zip
-*.tar
-*.gz
-*.rar
-
-# =========================
-# Spec Kit
-# =========================
-.specify/workflows/runs/
+.turbo/
+coverage/
+*.pem

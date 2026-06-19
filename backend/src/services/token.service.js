@@ -73,6 +73,7 @@ export class TokenService {
     };
   }
 
+  // Hàm khởi tạo token + refresh token mới
   setAuthCookies(res, { accessToken, refreshToken }) {
     res.cookie(
       this.config.cookieAccessName,

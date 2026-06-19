@@ -5,6 +5,7 @@ export async function requireAuth(req, _res, next) {
     const config = req.app.locals.authConfig;
     const authService = req.app.locals.authService;
     const token = req.cookies?.[config.cookieAccessName];
+    // Nếu thành công gán req.user = user.
     req.user = await authService.getAuthenticatedUserFromAccessToken(token);
     next();
   } catch (error) {

@@ -37,7 +37,7 @@ export default function ForgotPasswordPage() {
     setSubmitting(true);
     try {
       await authApi.forgotPassword({ email: validation.data.email });
-      showSuccessToast('Nếu hợp lệ, mã đặt lại đã được gửi.');
+      showSuccessToast('Nếu tài khoản hợp lệ, mã đặt lại đã được gửi.');
       setResetCountdown(RESET_CODE_COOLDOWN_SECONDS);
       navigate('/auth/reset-password', { state: { email: validation.data.email, resetSentAt: Date.now() } });
     } catch (requestError) {

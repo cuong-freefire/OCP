@@ -174,7 +174,7 @@ $hasGit = Test-HasGit
 
 Set-Location $repoRoot
 
-$specsDir = Join-Path $repoRoot '.sdd\specs'
+$specsDir = Join-Path $repoRoot 'specs'
 if (-not $DryRun) {
     New-Item -ItemType Directory -Path $specsDir -Force | Out-Null
 }
