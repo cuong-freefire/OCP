@@ -41,21 +41,25 @@ Sau khi đăng nhập, người dùng (ở bất kỳ vai trò nào) cần một
 **Answer:** **KHÔNG** cho phép thay đổi email qua `PUT /profile/me`
 
 **Rationale:**
+
 * **API Scope:** `PUT /profile/me` chỉ update `name` và `avatar_url` (per API_CATALOG.md line 18)
 * **Out of Scope:** Thay đổi email là separate feature yêu cầu OTP verification flow phức tạp
 * **Security:** Email là primary identity - thay đổi cần workflow riêng với xác thực mạnh hơn
 * **MVP Focus:** Giữ profile API đơn giản, tập trung vào use case cơ bản nhất
 
 **Implementation:**
+
 * ✅ Zod validator REJECT bất kỳ attempt nào update `email` field
 * ✅ Backend service FORBIDDEN update `email` (hardcoded in allowed fields list)
 * ✅ Separate API endpoint `/profile/change-email` sẽ được tạo cho change email feature (future scope)
 
 **Business Impact:**
+
 * User muốn đổi email → phải liên hệ support hoặc đợi future feature
 * Simplicity > Flexibility trong MVP scope
 
 **Reference:**
+
 * `API_CATALOG.md` line 18: "Update current user profile (name, avatar_url only)"
 * `feat-profile/SPEC.md` line 17: "❌ OUT OF SCOPE: Thay đổi email, password..."
 * `feat-profile/SPEC.md` line 119: "FORBIDDEN cập nhật: email, password_hash, role, status, role_version"

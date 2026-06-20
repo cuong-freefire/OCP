@@ -113,16 +113,20 @@ For feature-specific guidance, read `.sdd/specs/[feature-name]/SPEC.md` and `.sd
 
 ### Branch Naming Pattern
 
-- `feat/[feature-name]` — tính năng mới
+<!-- - `feat/[feature-name]` — tính năng mới
 - `fix/[bug-name]` — sửa lỗi
 - `spec/[feature-name]` — viết hoặc sửa spec
-- `chore/[short-name]` — cập nhật nhỏ, maintenance
+- `chore/[short-name]` — cập nhật nhỏ, maintenance -->
+
+- Mỗi thành viên sử dụng một branch riêng để phát triển và đồng bộ code.
+`[name]: [description]`
 
 ### Commit Format
 
 `[type]([scope]): [description]`
 
-**Example:** `feat(payment): create pending checkout payment`
+**Example:** `feat(payment): create pending checkout payment`,
+ `spec(profile): add complete feat-profile specification`
 
 ### PR Rules
 
