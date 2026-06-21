@@ -1,10 +1,10 @@
 # TASKS.md — Payment & Order Processing Implementation Tasks
 
-**Version:** 1.0.0  
+**Version:** 1.1.0  
 **Owner:** TienTD (Member 3)  
 **Based on:** PLAN.md v1.0.0, SPEC.md v1.1.0  
-**Date:** 2026-06-20  
-**Total Estimated Time:** 32 hours (~4 working days)
+**Date:** 2026-06-21  
+**Total Estimated Time:** 25 hours (~3 working days)
 
 ---
 
@@ -12,31 +12,42 @@
 
 | ID | Task Name | Files to Create/Edit | Est. Time | Dependencies | SPEC Refs | Done Criteria |
 |---|---|---|---|---|---|---|
-| **T001** | Create Prisma schema for payment tables | `prisma/schema.prisma` (edit) | 2h | None | SPEC §6 (Data Model) | Tables `orders`, `payments`, `enrollments` defined với correct fields, constraints, indexes |
-| **T002** | Run Prisma migration | Terminal command | 0.5h | T001 | SPEC §6 | Migration file generated, DB tables created successfully |
+| **T001** | Create Prisma schema for payment tables | `prisma/schema.prisma` (edit) | 2h | None | SPEC §5 (Data Model) | Tables `orders`, `payments` defined với correct fields, constraints, indexes (enrollments table owned by feat-enrollment) |
+| **T002** | Run Prisma migration | Terminal command | 0.5h | T001 | SPEC §5 | Migration file generated, DB tables created successfully |
 | **T003** | Create VNPAY helper utilities | `backend/src/utils/vnpay.helper.js` (create) | 2h | None | SPEC §3 (Event-driven - IPN), §4 (Security) | Functions `generateVNPayCheckoutUrl()` và `verifyVNPaySignature()` với HMAC-SHA512, pass unit tests |
-| **T004** | Create OrderRepository | `backend/src/repositories/order.repository.js` (create) | 2h | T002 | SPEC §6 (Data Model - orders) | Methods: `createOrder`, `findPendingOrder`, `updateOrderStatus` implemented với Prisma |
-| **T005** | Create PaymentRepository | `backend/src/repositories/payment.repository.js` (create) | 3h | T002 | SPEC §6 (Data Model - payments), §4 (Idempotency) | Methods: `createPayment`, `findPaymentById`, `findPaymentByOrderIdWithLock`, `updatePayment`, `expirePayment` with SELECT FOR UPDATE |
-| **T006** | Create EnrollmentRepository | `backend/src/repositories/enrollment.repository.js` (create) | 2h | T002 | SPEC §6 (Data Model - enrollments) | Methods: `createEnrollment`, `findEnrollment`, `findEnrollmentsByUserId` implemented |
-| **T007** | Unit test Repository layer | `backend/tests/repositories/payment.repository.test.js`, `order.repository.test.js`, `enrollment.repository.test.js` (create) | 3h | T004, T005, T006 | All Repository functions | Mock Prisma, test all methods với success/failure cases, coverage ≥ 80% |
-| **T008** | Create EnrollmentService | `backend/src/services/enrollment.service.js` (create) | 2h | T006 | SPEC §3 (Event-driven - enrollment), SPEC §6 | Methods: `canAccessCourse`, `getMyEnrollments` implemented, no Prisma import |
-| **T009** | Create PaymentService - createPaymentOrder | `backend/src/services/payment.service.js` (create) | 3h | T004, T005, T003 | SPEC §3 (Event-driven - create), §3 (State-driven - reuse URL) | Function handles pending order check, reuse URL logic, snapshot price, generate VNPAY URL |
-| **T010** | Create PaymentService - getPaymentStatus | `backend/src/services/payment.service.js` (edit) | 1h | T009 | SPEC §3 (Event-driven) | Function returns payment status với authorization check |
-| **T011** | Create PaymentService - processVNPayCallback | `backend/src/services/payment.service.js` (edit) | 4h | T009, T005, T006, T008 | SPEC §3 (Event-driven - IPN), §3 (Unwanted), §4 (Idempotency, Data Integrity), §7 (Error Handling) | Transaction logic với all checks: idempotency, expiration, amount validation, course re-validation, enrollment creation, rollback on failure |
-| **T012** | Unit test Service layer | `backend/tests/services/payment.service.test.js`, `enrollment.service.test.js` (create) | 4h | T008, T009, T010, T011 | All Service functions | Mock repositories, test all service methods including edge cases (expired, duplicate, failed), coverage ≥ 80% |
-| **T013** | Create validateCreatePayment middleware | `backend/src/middlewares/validateCreatePayment.middleware.js` (create) | 1.5h | None | SPEC §3 (Event-driven), §4 (Security) | Zod schema validates courseId, rejects amount/userId from body, pass validation tests |
-| **T014** | Create validateVNPaySignature middleware | `backend/src/middlewares/validateVNPaySignature.middleware.js` (create) | 2h | T003 | SPEC §3 (Event-driven - IPN), §4 (Security), §7 (Error Handling) | Middleware verifies vnp_SecureHash, logs security event on failure, returns 400 for invalid signature |
-| **T015** | Create PaymentController | `backend/src/controllers/payment.controller.js` (create) | 2h | T009, T010, T011 | SPEC §3 (Event-driven) | Methods: `createPayment`, `getPaymentStatus`, `handleVNPayCallback` call services and return proper responses |
-| **T016** | Create EnrollmentController | `backend/src/controllers/enrollment.controller.js` (create) | 1.5h | T008 | SPEC §3 (Event-driven - enrollment check) | Methods: `checkEnrollment`, `getMyCourses` implemented |
-| **T017** | Unit test Controller and Middleware | `backend/tests/controllers/payment.controller.test.js`, `enrollment.controller.test.js`, `backend/tests/middlewares/*.test.js` (create) | 3h | T013, T014, T015, T016 | Controller và Middleware logic | Mock services, test request/response handling, test middleware validation logic |
-| **T018** | Create payment routes | `backend/src/routes/payment.routes.js` (create) | 1h | T013, T014, T015 | SPEC §3 (Event-driven) | Routes: `POST /payments/create`, `GET /payments/:paymentId`, `POST /payments/vnpay/callback` registered với correct middlewares |
-| **T019** | Create enrollment routes | `backend/src/routes/enrollment.routes.js` (create) | 1h | T016 | SPEC §3 (Event-driven - enrollment) | Routes: `GET /enrollments/check`, `GET /enrollments/my-courses` registered với authMiddleware |
-| **T020** | Register routes in main app | `backend/src/app.js` or `backend/src/index.js` (edit) | 0.5h | T018, T019 | SPEC §3 | Payment và enrollment routes mounted on Express app |
-| **T021** | Integration test - POST /payments/create | `backend/tests/integration/payment.api.test.js` (create) | 2h | T020 | SPEC §8 (Acceptance Criteria - Scenario 1, 2) | Test with supertest, verify order creation, VNPAY URL generation, reuse URL for pending orders |
-| **T022** | Integration test - POST /payments/vnpay/callback | `backend/tests/integration/payment.api.test.js` (edit) | 3h | T020 | SPEC §8 (Acceptance Criteria - Scenario 1, 3), §7 (Error Handling) | Test success callback, idempotency, late IPN (expired), amount validation, enrollment creation, rollback scenario |
-| **T023** | Integration test - GET /enrollments/check | `backend/tests/integration/enrollment.api.test.js` (create) | 1.5h | T020 | SPEC §3 (Event-driven - enrollment check) | Test enrollment status check for active/cancelled/not enrolled users |
-| **T024** | Verify all SPEC acceptance criteria | All test files (review) | 1h | T021, T022, T023 | SPEC §8 (All 3 scenarios) | All acceptance criteria pass: payment success, pending order reuse, late IPN handling |
-| **T025** | Add enrollment success event emission | `backend/src/services/payment.service.js` (edit) | 1h | T011 | share_context.md §3.3 (Enrollment Success Event) | After enrollment creation, emit event hoặc call EmailService với payload: userId, courseId, enrollmentId, enrolledAt, paymentAmount, status |
+| **T004** | Create OrderRepository | `backend/src/repositories/order.repository.js` (create) | 2h | T002 | SPEC §5 (Data Model - orders) | Methods: `createOrder`, `findPendingOrder`, `updateOrderStatus` implemented với Prisma |
+| **T005** | Create PaymentRepository | `backend/src/repositories/payment.repository.js` (create) | 3h | T002 | SPEC §5 (Data Model - payments), §4 (Idempotency) | Methods: `createPayment`, `findPaymentById`, `findPaymentByOrderIdWithLock`, `updatePayment`, `expirePayment` with SELECT FOR UPDATE |
+| **T006** | Unit test Repository layer | `backend/tests/repositories/payment.repository.test.js`, `order.repository.test.js` (create) | 2h | T004, T005 | Repository functions | Mock Prisma, test all methods với success/failure cases, coverage ≥ 80% |
+| **T007** | Create PaymentService - createPaymentOrder | `backend/src/services/payment.service.js` (create) | 3h | T004, T005, T003 | SPEC §3 (Event-driven - create), §3 (State-driven - reuse URL) | Function handles pending order check, reuse URL logic, snapshot price, generate VNPAY URL |
+| **T008** | Create PaymentService - getPaymentStatus | `backend/src/services/payment.service.js` (edit) | 1h | T007 | SPEC §3 (Event-driven) | Function returns payment status với authorization check |
+| **T009** | Create PaymentService - processVNPayCallback | `backend/src/services/payment.service.js` (edit) | 4h | T007, T005, feat-enrollment:T003, feat-enrollment:T006 | SPEC §3 (Event-driven - IPN), §3 (Unwanted), §4 (Idempotency, Data Integrity), §6 (Error Handling) | Transaction logic với all checks: idempotency, expiration, amount validation, course re-validation, enrollment creation (via EnrollmentService), rollback on failure |
+| **T010** | Unit test Service layer | `backend/tests/services/payment.service.test.js` (create) | 3h | T007, T008, T009 | All Service functions | Mock repositories & EnrollmentService, test all service methods including edge cases (expired, duplicate, failed), coverage ≥ 80% |
+| **T011** | Create validateCreatePayment middleware | `backend/src/middlewares/validateCreatePayment.middleware.js` (create) | 1.5h | None | SPEC §3 (Event-driven), §4 (Security) | Zod schema validates courseId, rejects amount/userId from body, pass validation tests |
+| **T012** | Create validateVNPaySignature middleware | `backend/src/middlewares/validateVNPaySignature.middleware.js` (create) | 2h | T003 | SPEC §3 (Event-driven - IPN), §4 (Security), §6 (Error Handling) | Middleware verifies vnp_SecureHash, logs security event on failure, returns 400 for invalid signature |
+| **T013** | Create PaymentController | `backend/src/controllers/payment.controller.js` (create) | 2h | T007, T008, T009 | SPEC §3 (Event-driven) | Methods: `createPayment`, `getPaymentStatus`, `handleVNPayCallback` call services and return proper responses |
+| **T014** | Create EnrollmentController | `backend/src/controllers/enrollment.controller.js` (create) | 1.5h | feat-enrollment:T006 | SPEC §3 (Event-driven - enrollment check) | Methods: `checkEnrollment`, `getMyCourses` implemented (uses EnrollmentService from feat-enrollment) |
+| **T015** | Unit test Controller and Middleware | `backend/tests/controllers/payment.controller.test.js`, `enrollment.controller.test.js`, `backend/tests/middlewares/*.test.js` (create) | 3h | T011, T012, T013, T014 | Controller và Middleware logic | Mock services, test request/response handling, test middleware validation logic |
+| **T016** | Create payment routes | `backend/src/routes/payment.routes.js` (create) | 1h | T011, T012, T013 | SPEC §3 (Event-driven) | Routes: `POST /payments/create`, `GET /payments/:paymentId`, `POST /payments/vnpay/callback` registered với correct middlewares |
+| **T017** | Create enrollment routes | `backend/src/routes/enrollment.routes.js` (create) | 1h | T014 | SPEC §3 (Event-driven - enrollment) | Routes: `GET /enrollments/check`, `GET /enrollments/my-courses` registered với authMiddleware |
+| **T018** | Register routes in main app | `backend/src/app.js` or `backend/src/index.js` (edit) | 0.5h | T016, T017 | SPEC §3 | Payment và enrollment routes mounted on Express app |
+| **T019** | Integration test - POST /payments/create | `backend/tests/integration/payment.api.test.js` (create) | 2h | T018 | SPEC §7 (Acceptance Criteria - Scenario 1, 2) | Test with supertest, verify order creation, VNPAY URL generation, reuse URL for pending orders |
+| **T020** | Integration test - POST /payments/vnpay/callback | `backend/tests/integration/payment.api.test.js` (edit) | 3h | T018 | SPEC §7 (Acceptance Criteria - Scenario 1, 3), §6 (Error Handling) | Test success callback, idempotency, late IPN (expired), amount validation, enrollment creation, rollback scenario |
+| **T021** | Integration test - GET /enrollments/check | `backend/tests/integration/enrollment.api.test.js` (create) | 1.5h | T018 | SPEC §3 (Event-driven - enrollment check) | Test enrollment status check for active/cancelled/not enrolled users |
+| **T022** | Verify all SPEC acceptance criteria | All test files (review) | 1h | T019, T020, T021 | SPEC §7 (All 3 scenarios) | All acceptance criteria pass: payment success, pending order reuse, late IPN handling |
+| **T023** | Add enrollment success event emission | `backend/src/services/payment.service.js` (edit) | 1h | T009 | share_context.md §3.3 (Enrollment Success Event) | After enrollment creation, emit event hoặc call EmailService với payload: userId, courseId, enrollmentId, enrolledAt, paymentAmount, status |
+
+---
+
+## Cross-Feature Dependencies
+
+**This feature REUSES components from feat-enrollment (Member 3):**
+
+| Component | Provided By | Used In Tasks |
+|---|---|---|
+| `EnrollmentRepository` | feat-enrollment:T003 | T009 (PaymentService callback) |
+| `EnrollmentService` | feat-enrollment:T006 | T009 (PaymentService callback), T014 (EnrollmentController) |
+
+**Implementation Note:** feat-enrollment MUST be implemented first to provide the enrollment infrastructure. Payment module will import and use these components without recreating them.
 
 ---
 
@@ -49,56 +60,58 @@
 **Goal:** Setup database schema và VNPAY utilities
 
 **Deliverables:**
-- Prisma schema với 3 tables (orders, payments, enrollments)
+- Prisma schema với 2 tables (orders, payments) - enrollments owned by feat-enrollment
 - DB migration successful
 - VNPAY helper functions with unit tests
 
 ---
 
 ### Phase 2: Repository Layer
-**Duration:** 10 hours  
-**Tasks:** T004, T005, T006, T007
+**Duration:** 7 hours  
+**Tasks:** T004, T005, T006
 
-**Goal:** Create data access layer với Prisma
+**Goal:** Create payment-specific data access layer với Prisma
 
 **Deliverables:**
-- OrderRepository, PaymentRepository, EnrollmentRepository
+- OrderRepository, PaymentRepository (EnrollmentRepository reused from feat-enrollment)
 - Unit tests với coverage ≥ 80%
 - SELECT FOR UPDATE implemented in PaymentRepository
+
+**Note:** EnrollmentRepository và EnrollmentService sẽ được import từ feat-enrollment module.
 
 ---
 
 ### Phase 3: Service Layer
-**Duration:** 14 hours  
-**Tasks:** T008, T009, T010, T011, T012
+**Duration:** 11 hours  
+**Tasks:** T007, T008, T009, T010
 
-**Goal:** Implement business logic
+**Goal:** Implement payment business logic
 
 **Deliverables:**
-- EnrollmentService với canAccessCourse contract
 - PaymentService với 3 methods (create, getStatus, processCallback)
 - Transaction logic với idempotency, validation, rollback
-- Unit tests với mock repositories
+- Integration với EnrollmentService từ feat-enrollment
+- Unit tests với mock repositories và mock EnrollmentService
 
 ---
 
 ### Phase 4: Controller, Middleware & Routes
-**Duration:** 11.5 hours  
-**Tasks:** T013, T014, T015, T016, T017, T018, T019, T020
+**Duration:** 9 hours  
+**Tasks:** T011, T012, T013, T014, T015, T016, T017, T018
 
 **Goal:** HTTP layer implementation
 
 **Deliverables:**
 - 2 middlewares: validateCreatePayment, validateVNPaySignature
-- 2 controllers: PaymentController, EnrollmentController
+- 2 controllers: PaymentController, EnrollmentController (using EnrollmentService)
 - 2 route files registered in app
 - Unit tests for controllers và middlewares
 
 ---
 
 ### Phase 5: Integration Testing & Event Emission
-**Duration:** 8.5 hours  
-**Tasks:** T021, T022, T023, T024, T025
+**Duration:** 7.5 hours  
+**Tasks:** T019, T020, T021, T022, T023
 
 **Goal:** End-to-end testing và event integration
 
@@ -112,39 +125,43 @@
 ## Task Dependencies Graph
 
 ```
-T001 (Prisma schema)
-  ├─> T002 (Migration)
+feat-enrollment (PREREQUISITE)
+  ├─> T003 (EnrollmentRepository)
+  └─> T006 (EnrollmentService)
+        │
+        └─────────────────────┐
+                              │
+T001 (Prisma schema)          │
+  ├─> T002 (Migration)        │
   │     ├─> T004 (OrderRepository)
-  │     ├─> T005 (PaymentRepository)
-  │     └─> T006 (EnrollmentRepository)
-  │           ├─> T007 (Repo tests)
-  │           ├─> T008 (EnrollmentService)
-  │           └─> T009 (PaymentService - create)
-  │                 ├─> T010 (PaymentService - getStatus)
-  │                 └─> T011 (PaymentService - callback)
-  │                       ├─> T012 (Service tests)
-  │                       ├─> T015 (PaymentController)
-  │                       └─> T025 (Event emission)
+  │     └─> T005 (PaymentRepository)
+  │           └─> T006 (Repo tests)
+  │                 └─> T007 (PaymentService - create)
+  │                       ├─> T008 (PaymentService - getStatus)
+  │                       └─> T009 (PaymentService - callback) ◄─┘
+  │                             ├─> T010 (Service tests)
+  │                             ├─> T013 (PaymentController)
+  │                             └─> T023 (Event emission)
   │
 T003 (VNPAY helper)
-  ├─> T009 (PaymentService - uses helper)
-  └─> T014 (Signature middleware)
+  ├─> T007 (PaymentService - uses helper)
+  └─> T012 (Signature middleware)
 
-T013 (validateCreatePayment)
-T014 (Signature middleware)
-T015 (PaymentController)
-  └─> T018 (Payment routes)
+T011 (validateCreatePayment)
+T012 (Signature middleware)
+T013 (PaymentController)
+  └─> T016 (Payment routes)
 
-T008 (EnrollmentService)
-  └─> T016 (EnrollmentController)
-        └─> T019 (Enrollment routes)
+feat-enrollment:T006 (EnrollmentService)
+  └─> T014 (EnrollmentController)
+        └─> T017 (Enrollment routes)
 
-T018, T019
-  └─> T020 (Register routes)
-        ├─> T021 (Integration test - create)
-        ├─> T022 (Integration test - callback)
-        └─> T023 (Integration test - enrollment)
-              └─> T024 (Verify acceptance criteria)
+T016, T017
+  └─> T018 (Register routes)
+        ├─> T019 (Integration test - create)
+        ├─> T020 (Integration test - callback)
+        └─> T021 (Integration test - enrollment)
+              └─> T022 (Verify acceptance criteria)
 ```
 
 ---
@@ -153,15 +170,14 @@ T018, T019
 
 | SPEC Section | Tasks Implementing |
 |---|---|
-| §3 - Ubiquitous (BIGINT, snapshot price) | T001, T004, T005, T009 |
-| §3 - Event-driven (create payment, IPN, enrollment) | T009, T010, T011, T015, T016, T018, T019 |
-| §3 - State-driven (reuse URL) | T009, T021 |
-| §3 - Unwanted (signature invalid, expired, archived course) | T011, T014, T022 |
-| §4 - Non-functional (Idempotency, Security, Data Integrity) | T005, T011, T013, T014 |
-| §5 - State Diagram | T011 (state transitions) |
-| §6 - Data Model | T001, T004, T005, T006 |
-| §7 - Error Handling | T011, T014, T022 |
-| §8 - Acceptance Criteria | T021, T022, T023, T024 |
+| §3 - Ubiquitous (BIGINT, snapshot price) | T001, T004, T005, T007 |
+| §3 - Event-driven (create payment, IPN, enrollment) | T007, T008, T009, T013, T014, T016, T017 |
+| §3 - State-driven (reuse URL) | T007, T019 |
+| §3 - Unwanted (signature invalid, expired, archived course) | T009, T012, T020 |
+| §4 - Non-functional (Idempotency, Security, Data Integrity) | T005, T009, T011, T012 |
+| §5 - Data Model | T001, T004, T005 |
+| §6 - Error Handling | T009, T012, T020 |
+| §7 - Acceptance Criteria | T019, T020, T021, T022 |
 
 ---
 
@@ -179,6 +195,7 @@ Mỗi task được coi là **DONE** khi:
 8. ✅ Integration tests verify tất cả SPEC acceptance criteria
 9. ✅ Không có console.log, debug statements, hoặc commented code
 10. ✅ Error responses theo format: `{ success, message, code, details }`
+11. ✅ EnrollmentRepository và EnrollmentService được import từ feat-enrollment (KHÔNG tạo lại)
 
 ---
 
@@ -186,14 +203,13 @@ Mỗi task được coi là **DONE** khi:
 
 Các tasks sau có thể làm song song để tăng tốc:
 
-1. **T003 + T004/T005/T006**: VNPAY helper và Repositories có thể làm đồng thời
-2. **T013 + T008**: validateCreatePayment middleware và EnrollmentService independent
-3. **T014 + T016**: validateVNPaySignature và EnrollmentController có thể parallel
-4. **T021 + T023**: Integration tests cho payment và enrollment có thể làm đồng thời
+1. **T003 + T004/T005**: VNPAY helper và Repositories có thể làm đồng thời
+2. **T011 + T007**: validateCreatePayment middleware và PaymentService - createPaymentOrder independent
+3. **T012 + T014**: validateVNPaySignature và EnrollmentController có thể parallel
+4. **T019 + T021**: Integration tests cho payment và enrollment có thể làm đồng thời
 
-**Recommended Sequence for 2 developers:**
-- **Developer A**: T001 → T002 → T004 → T005 → T006 → T007 → T009 → T010 → T011 → T012 → T015 → T018 → T021 → T022
-- **Developer B**: T003 → T013 → T014 → T008 → T016 → T017 → T019 → T023 → T025 (wait for T011)
+**Recommended Sequence for 1 developer (sau khi feat-enrollment hoàn thành):**
+- T001 → T002 → T004 → T005 → T006 → T003 → T007 → T008 → T009 → T010 → T011 → T012 → T013 → T014 → T015 → T016 → T017 → T018 → T019 → T020 → T021 → T022 → T023
 
 ---
 
@@ -203,17 +219,18 @@ Các tasks sau có thể làm song song để tăng tốc:
 - ⚠️ Verify `SELECT FOR UPDATE` syntax với Prisma `$queryRaw`
 - ⚠️ Test lock behavior với concurrent requests
 
-**During T011 (processVNPayCallback)**:
+**During T009 (processVNPayCallback)**:
 - ⚠️ Test rollback scenario khi enrollment creation fail
 - ⚠️ Verify idempotency với duplicate callbacks
 - ⚠️ Test late IPN với expired payment
+- ⚠️ Ensure EnrollmentService từ feat-enrollment đã implemented đầy đủ
 
-**During T021-T022 (Integration Tests)**:
+**During T019-T020 (Integration Tests)**:
 - ⚠️ Seed data cleanup sau mỗi test
 - ⚠️ Mock VNPAY signature validation hoặc dùng test secret key
 - ⚠️ Test với real database (không mock Prisma ở integration level)
 
-**During T025 (Event Emission)**:
+**During T023 (Event Emission)**:
 - ⚠️ Verify event payload theo đúng contract trong share_context.md §3.3
 - ⚠️ Handle email service failure gracefully (async, không block response)
 
@@ -221,16 +238,47 @@ Các tasks sau có thể làm song song để tăng tốc:
 
 ## Notes
 
-- **All tasks ≤ 4h**: Task lớn nhất là T011 (4h) cho complex callback logic
+- **All tasks ≤ 4h**: Task lớn nhất là T009 (4h) cho complex callback logic
 - **Sequential dependencies**: Repository → Service → Controller → Routes → Integration Tests
 - **SPEC coverage**: Mọi requirement trong SPEC.md được map vào ít nhất 1 task
-- **Event emission**: T025 là task cuối để integrate với Member A (Email Service)
+- **Event emission**: T023 là task cuối để integrate với Member A (Email Service)
+- **Cross-feature reuse**: EnrollmentRepository và EnrollmentService được reuse từ feat-enrollment để tránh duplicate code
+
+---
+
+## Integration với Cross-Module Dependencies
+
+### Contract Consumed FROM feat-enrollment:
+
+**T009 và T014** cần inject EnrollmentService từ feat-enrollment:
+
+```javascript
+// PaymentService (T009)
+const EnrollmentService = require('../../enrollment/services/enrollment.service');
+
+class PaymentService {
+  constructor(orderRepo, paymentRepo, enrollmentService) {
+    this.enrollmentService = enrollmentService; // from feat-enrollment
+  }
+  
+  async processVNPayCallback(vnpayData) {
+    // ... validation logic ...
+    
+    // Use EnrollmentService to create enrollment
+    await this.enrollmentService.handlePaymentSuccess({
+      userId: order.user_id,
+      courseId: order.course_id,
+      paymentId: payment.id
+    });
+  }
+}
+```
 
 ---
 
 ## Next Steps After Completion
 
-1. ✅ Answer PLAN.md Section 6 questions (Q1-Q6) với stakeholders
+1. ✅ Verify feat-enrollment is fully implemented and tested
 2. ✅ Setup VNPAY sandbox credentials trong `.env`
 3. ✅ Deploy to staging environment
 4. ✅ Perform manual testing với real VNPAY flow
