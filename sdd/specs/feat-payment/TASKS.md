@@ -20,7 +20,7 @@
 | **T006** | Unit test Repository layer | `backend/tests/repositories/payment.repository.test.js`, `order.repository.test.js` (create) | 2h | T004, T005 | Repository functions | Mock Prisma, test all methods với success/failure cases, coverage ≥ 80% |
 | **T007** | Create PaymentService - createPaymentOrder | `backend/src/services/payment.service.js` (create) | 3h | T004, T005, T003 | SPEC §3 (Event-driven - create), §3 (State-driven - reuse URL) | Function handles pending order check, reuse URL logic, snapshot price, generate VNPAY URL |
 | **T008** | Create PaymentService - getPaymentStatus | `backend/src/services/payment.service.js` (edit) | 1h | T007 | SPEC §3 (Event-driven) | Function returns payment status với authorization check |
-| **T009** | Create PaymentService - processVNPayCallback | `backend/src/services/payment.service.js` (edit) | 4h | T007, T005, feat-enrollment:T003, feat-enrollment:T006 | SPEC §3 (Event-driven - IPN), §3 (Unwanted), §4 (Idempotency, Data Integrity), §6 (Error Handling) | Transaction logic với all checks: idempotency, expiration, amount validation, course re-validation, enrollment creation (via EnrollmentService), rollback on failure |
+| **T009** | Create PaymentService - processVNPayCallback | `backend/src/services/payment.service.js` (edit) | 4h | T007, T005, feat-enrollment:T003, feat-enrollment:T007 | SPEC §3 (Event-driven - IPN), §3 (Unwanted), §4 (Idempotency, Data Integrity), §6 (Error Handling) | Transaction logic với all checks: idempotency, expiration, amount validation, course re-validation, enrollment creation (via EnrollmentService.handlePaymentSuccess), rollback on failure |
 | **T010** | Unit test Service layer | `backend/tests/services/payment.service.test.js` (create) | 3h | T007, T008, T009 | All Service functions | Mock repositories & EnrollmentService, test all service methods including edge cases (expired, duplicate, failed), coverage ≥ 80% |
 | **T011** | Create validateCreatePayment middleware | `backend/src/middlewares/validateCreatePayment.middleware.js` (create) | 1.5h | None | SPEC §3 (Event-driven), §4 (Security) | Zod schema validates courseId, rejects amount/userId from body, pass validation tests |
 | **T012** | Create validateVNPaySignature middleware | `backend/src/middlewares/validateVNPaySignature.middleware.js` (create) | 2h | T003 | SPEC §3 (Event-driven - IPN), §4 (Security), §6 (Error Handling) | Middleware verifies vnp_SecureHash, logs security event on failure, returns 400 for invalid signature |
@@ -45,7 +45,8 @@
 | Component | Provided By | Used In Tasks |
 |---|---|---|
 | `EnrollmentRepository` | feat-enrollment:T003 | T009 (PaymentService callback) |
-| `EnrollmentService` | feat-enrollment:T006 | T009 (PaymentService callback), T014 (EnrollmentController) |
+| `EnrollmentService.handlePaymentSuccess` | feat-enrollment:T007 | T009 (PaymentService callback) |
+| `EnrollmentService.canAccessCourse` | feat-enrollment:T006 | T014 (EnrollmentController) |
 
 **Implementation Note:** feat-enrollment MUST be implemented first to provide the enrollment infrastructure. Payment module will import and use these components without recreating them.
 
@@ -127,7 +128,8 @@
 ```
 feat-enrollment (PREREQUISITE)
   ├─> T003 (EnrollmentRepository)
-  └─> T006 (EnrollmentService)
+  ├─> T006 (EnrollmentService.canAccessCourse)
+  └─> T007 (EnrollmentService.handlePaymentSuccess)
         │
         └─────────────────────┐
                               │
@@ -152,7 +154,7 @@ T012 (Signature middleware)
 T013 (PaymentController)
   └─> T016 (Payment routes)
 
-feat-enrollment:T006 (EnrollmentService)
+feat-enrollment:T006 (EnrollmentService.canAccessCourse)
   └─> T014 (EnrollmentController)
         └─> T017 (Enrollment routes)
 
