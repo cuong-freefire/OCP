@@ -1,5 +1,8 @@
 # Dependencies
 node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
 package-lock.json
 yarn.lock
 pnpm-lock.yaml
@@ -8,20 +11,22 @@ pnpm-lock.yaml
 .env
 .env.local
 .env.*.local
+.env.development.local
+.env.test.local
+.env.production.local
 
 # Logs
 *.log
 *.err.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
 pnpm-debug.log*
+logs/
 
 # Build outputs
 build/
 dist/
 .next/
 out/
+*.tsbuildinfo
 
 # IDE and Editor
 .vscode/
@@ -29,8 +34,6 @@ out/
 *.swp
 *.swo
 *~
-.DS_Store
-Thumbs.db
 
 # OS
 .DS_Store
@@ -38,10 +41,16 @@ Thumbs.db
 ._*
 .Spotlight-V100
 .Trashes
+Thumbs.db
 ehthumbs.db
+
+# Testing
+coverage/
+.nyc_output/
 
 # Misc
 .cache/
 .turbo/
-coverage/
 *.pem
+*.tmp
+*.temp
